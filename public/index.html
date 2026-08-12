@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conduce-Fácil · Prepara tu examen teórico Clase B</title>
+<meta name="description" content="Aplicativo de estudio para el examen teórico de conducción Clase B en Chile: contenidos del Manual CONASET, trivia con las señaléticas oficiales, tests cronometrados y seguimiento de resultados.">
+<meta name="theme-color" content="#040764">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/assets/marca/favicon_conduce_facil.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/assets/marca/icono_conduce_facil.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/marca/favicon_conduce_facil.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preload" href="/assets/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/tipografia_conduce_facil.css">
+<link rel="stylesheet" href="/assets/css/estilos_conduce_facil.css">
+<meta property="og:title" content="Conduce-Fácil">
+<meta property="og:description" content="Prepara el examen teórico de conducción Clase B con los contenidos oficiales de CONASET y del Manual de Señalización.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<!-- Símbolos SVG reutilizables (una sola línea iconográfica, trazo 1.8) -->
+<svg class="solo-lectores" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="i-marca">
+      <rect x="4" y="4" width="120" height="120" rx="24" fill="#040764"/>
+      <path d="M33 69 L55 91" fill="none" stroke="#20B6B6" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M55 91 L97 33" fill="none" stroke="#FFFFFF" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M63 82 L89 46" fill="none" stroke="#040764" stroke-width="3.4" stroke-linecap="butt" stroke-dasharray="6 8"/>
+    </g>
+    <g id="i-marca-negativo">
+      <rect x="4" y="4" width="120" height="120" rx="24" fill="#FFFFFF"/>
+      <path d="M33 69 L55 91" fill="none" stroke="#20B6B6" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M55 91 L97 33" fill="none" stroke="#040764" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M63 82 L89 46" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="butt" stroke-dasharray="6 8"/>
+    </g>
+    <g id="i-gamonal">
+      <rect x="2" y="2" width="44" height="44" rx="9" fill="#1C73CB"/>
+      <path d="M33.5 17.5a9.5 9.5 0 1 0 0 13" fill="none" stroke="#FFFFFF" stroke-width="4.6" stroke-linecap="round"/>
+      <path d="M33.5 24h-6" fill="none" stroke="#FCE865" stroke-width="4.6" stroke-linecap="round"/>
+    </g>
+    <g id="i-home" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-5h5v5"/>
+    </g>
+    <g id="i-estudio" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4.5h6a2.5 2.5 0 0 1 2.5 2.5v13"/><path d="M20 4.5h-6a2.5 2.5 0 0 0-2.5 2.5"/>
+      <path d="M4 4.5v13h6"/><path d="M20 4.5v13h-6"/>
+    </g>
+    <g id="i-trivia" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2.5 21.5 12 12 21.5 2.5 12z"/><path d="M9.8 9.6a2.3 2.3 0 1 1 2.9 2.6v1.3"/><path d="M12.7 16.6h.01"/>
+    </g>
+    <g id="i-test" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 3.5h9l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/>
+      <path d="M14.5 3.7V8h4.3"/><path d="M8.5 12.5l1.8 1.8 3.6-3.8"/><path d="M8.5 18h7"/>
+    </g>
+    <g id="i-repaso" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20.5 3.5V8H16"/>
+    </g>
+    <g id="i-resultados" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20.5V4"/><path d="M4 20.5h16.5"/><path d="M8 17V11"/><path d="M12.5 17V7.5"/><path d="M17 17v-4"/>
+    </g>
+    <g id="i-config" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.7 6.7 5 5M19 19l-1.7-1.7M6.7 17.3 5 19M19 5l-1.7 1.7"/>
+    </g>
+    <g id="i-admin" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="8" r="3.2"/><path d="M3.2 20c0-3.2 2.6-5.4 5.8-5.4s5.8 2.2 5.8 5.4"/>
+      <path d="M17 7.5h4M17 11.5h4M17 15.5h4"/>
+    </g>
+    <g id="i-reloj" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 2"/>
+    </g>
+    <g id="i-salir" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h8"/><path d="M17 8.5 20.5 12 17 15.5"/><path d="M20 12H9.5"/>
+    </g>
+    <g id="i-flecha" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 12h14"/><path d="M13 6.5 18.5 12 13 17.5"/>
+    </g>
+    <g id="i-libro" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4.5h5.5A2.5 2.5 0 0 1 12 7v13"/><path d="M20 4.5h-5.5A2.5 2.5 0 0 0 12 7"/>
+      <path d="M4 4.5V19h6.5"/><path d="M20 4.5V19h-6.5"/>
+    </g>
+  </defs>
+</svg>
+
+<div id="raiz" aria-live="polite">
+  <div class="cargando">Cargando Conduce-Fácil…</div>
+</div>
+
+<noscript>
+  <div class="contenedor" style="padding-top:48px">
+    <h1>Conduce-Fácil</h1>
+    <p>Este aplicativo necesita JavaScript activado para funcionar.</p>
+  </div>
+</noscript>
+
+<script type="module" src="/assets/js/app_conduce_facil.js"></script>
+</body>
+</html>

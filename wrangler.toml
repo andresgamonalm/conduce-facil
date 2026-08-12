@@ -1,0 +1,22 @@
+# Conduce-Fácil · configuración de Cloudflare Pages
+#
+# El sitio publicable es la carpeta ./public. Las funciones de ./functions se
+# despliegan automáticamente como Pages Functions.
+#
+# El aplicativo funciona sin base de datos (modo local, todo en el navegador).
+# Para activar el modo servidor -cuentas y resultados centralizados, con la
+# cuenta de administración viendo el avance de todas las personas- basta con
+# crear una base D1 y descomentar el bloque [[d1_databases]].
+#
+#   npx wrangler d1 create conduce-facil
+#   (copiar el database_id entregado por el comando en la línea de abajo)
+#   npx wrangler pages deploy public --project-name conduce-facil
+
+name = "conduce-facil"
+pages_build_output_dir = "public"
+compatibility_date = "2024-11-01"
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "conduce-facil"
+# database_id = "<pegar-aquí-el-database_id>"

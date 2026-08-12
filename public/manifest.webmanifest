@@ -1,0 +1,16 @@
+{
+  "name": "Conduce-Fácil",
+  "short_name": "Conduce-Fácil",
+  "description": "Preparación del examen teórico de conducción Clase B en Chile con los contenidos oficiales de CONASET y del Manual de Señalización de Tránsito.",
+  "lang": "es-CL",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F5",
+  "theme_color": "#040764",
+  "icons": [
+    { "src": "/assets/marca/favicon_conduce_facil.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/marca/icono_conduce_facil_1000x1000.png", "sizes": "1000x1000", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/marca/icono_conduce_facil.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
