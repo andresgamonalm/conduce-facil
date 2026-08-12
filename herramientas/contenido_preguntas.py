@@ -879,3 +879,86 @@ P("anexo3", "Tras la primera denegación de la licencia, ¿cuánto hay que esper
 P("anexo3", "¿Qué plazo tiene la Municipalidad para informar la emisión de la licencia al Registro Civil?",
   ["5 días hábiles", "30 días corridos", "24 horas", "6 meses"], 0,
   169, "la Municipalidad tiene un plazo de 5 días hábiles para informar al Servicio de Registro Civil e Identificación")
+
+
+# ---------------------------------------------------------------------------
+# Ilustraciones del manual asociadas a la pregunta
+# ---------------------------------------------------------------------------
+# El Manual CONASET plantea varios casos con un dibujo, y el examen teórico los
+# incorpora. Aquí se declara, pregunta por pregunta, cuál es la ilustración que
+# el propio manual usa para ese caso. Se enuncia el texto completo de la
+# pregunta como clave para que la asociación no dependa de la numeración.
+#
+# Regla de fidelidad: la ilustración sólo puede provenir de la misma página del
+# manual de la que se recortó el fundamento. `aplicar_ilustraciones()` lo
+# comprueba contra el manifiesto de figuras y aborta si no se cumple, de modo
+# que es imposible publicar una pregunta con un dibujo que no le corresponde.
+
+ILUSTRACIONES: dict[str, list[str]] = {
+    "¿Qué indica el tacómetro del panel de instrumentos?": ["cf011a.png"],
+    "¿Qué informan los testigos de color rojo del panel de instrumentos?": ["cf011a.png"],
+    "Si se enciende la luz indicadora de presión de aceite, ¿qué debes hacer?": ["cf012b.png"],
+    "En el indicador de combustible, ¿qué significan las letras E y F?": ["cf013a.jpg"],
+    "¿Cuánto es un tiempo normal de reacción de una persona conductora?": ["cf023a.jpg"],
+    "La distancia de detención (S) corresponde a:": ["cf023a.jpg"],
+    "Si duplicas la velocidad, la distancia de frenado aumenta:": ["cf024a.jpg", "cf024b.png"],
+    "¿A qué velocidad se infla la bolsa de aire del airbag al producirse un siniestro?": ["cf030d.jpg"],
+    "El uso del airbag frontal junto con el cinturón de seguridad puede reducir la probabilidad de lesiones mortales en:": ["cf030d.jpg"],
+    "¿Cuál es la separación máxima que debe existir entre la cabeza y el apoya cabezas?": ["cf031a.png"],
+    "¿Dónde debe quedar situado el borde superior del apoya cabezas?": ["cf031a.png"],
+    "¿Qué ocurre con el campo visual a medida que aumenta la velocidad?": ["cf044a.jpg"],
+    "Si enfrentas al mismo tiempo la indicación de un carabinero y la de un semáforo, ¿cuál prevalece?": ["cf077a.png", "cf077b.png"],
+    "Un carabinero visto de frente o de espalda indica:": ["cf077a.png"],
+    "Aun teniendo luz verde, no debes avanzar si pasado el cruce no tienes a lo menos:": ["cf078b.jpg"],
+    "¿Qué indica la luz roja intermitente de un semáforo?": ["cf078c.jpg"],
+    "¿Qué indica la luz amarilla intermitente?": ["cf078a.jpg"],
+    "No respetar la indicación de la luz roja de un semáforo es una infracción:": ["cf078c.jpg"],
+    "En los cruces ferroviarios, la luz blanca de las señales luminosas indica que:": ["cf079e.png"],
+    "Si la línea de detención no está pintada en un paso de cebra o cruce semaforizado, se ubica imaginariamente:": ["cf083a.jpg"],
+    "Cuando te aproximas a un cruce sin semáforo ni señales PARE o Ceda el Paso, debes dar preferencia a:": ["cf084a.jpg"],
+    "Al enfrentar una señal PARE debes:": ["cf084c.png"],
+    "Ante la aproximación de un vehículo de emergencia con señales luminosas y/o acústicas debes:": ["cf085a.png"],
+    "Cuál es la secuencia correcta para efectuar un cambio de pista:": ["cf086a.jpg"],
+    # Verificadas contra la página 86 del manual: el pie de cada recuadro fija
+    # el significado y la asociación se comprobó imagen a imagen.
+    "El brazo izquierdo extendido horizontalmente indica:": ["cf086f.jpg"],
+    "El brazo izquierdo en ángulo recto hacia arriba indica:": ["cf086d.jpg"],
+    "El brazo extendido hacia abajo indica:": ["cf086e.jpg"],
+    "¿En qué consiste la Regla de los Tres Segundos?": ["cf088a.jpg"],
+    "Con cuánta anticipación mínima debes señalizar tu intención de virar:": ["cf091a.jpg"],
+    "Si dos vehículos circulan en sentido contrario, ¿a qué velocidad se aproximan entre sí?": ["cf098a.jpg"],
+    "Los adelantamientos deben efectuarse siempre:": ["cf103b.jpg"],
+    "¿Desde y hasta qué momento deben circular obligatoriamente los vehículos con sus luces encendidas?": ["cf110c.jpg"],
+    "¿Es necesario bajar las luces al cruzarse con peatones?": ["cf111c.jpg"],
+    "La Licencia de Conducir Clase B permite conducir un automóvil con un remolque ligero siempre que el peso total no supere:": ["cf114a.jpg"],
+    "¿Desde qué capacidad de carga deben poseer frenos los remolques?": ["cf115a.jpg"],
+    "Al ingresar a una autopista por la pista de aceleración, la prioridad la tienen:": ["cf116a.jpg"],
+    "Si no puedes llegar con tu vehículo a la berma en una autopista, NO debes:": ["cf118a.jpg"],
+    "Toda persona que participe en un siniestro con personas lesionadas o muertas está obligada a:": ["cf136a.png", "cf136b.png", "cf136c.png"],
+    "Ante una falla total de frenos, ¿cuál es una de las maniobras recomendadas?": ["cf146a.jpg"],
+    "¿Dónde debe obtenerse la Licencia de Conducir?": ["cf168a.png"],
+}
+
+
+def aplicar_ilustraciones(figuras_por_pagina: dict[int, list[str]]) -> None:
+    """Adjunta a cada pregunta la ilustración que el manual usa para su caso.
+
+    Falla de inmediato si una pregunta declarada no existe, si la figura no
+    está en el manifiesto o si no pertenece a la página de la que se recortó el
+    fundamento: ninguna de esas situaciones puede llegar a publicarse.
+    """
+    porenunciado = {p["enunciado"]: p for p in PREGUNTAS}
+    for pregunta in PREGUNTAS:
+        pregunta["figuras"] = []
+    for enunciado, archivos in ILUSTRACIONES.items():
+        pregunta = porenunciado.get(enunciado)
+        if pregunta is None:
+            raise SystemExit(f"Ilustración declarada para una pregunta inexistente: {enunciado!r}")
+        disponibles = figuras_por_pagina.get(pregunta["pagina"], [])
+        for archivo in archivos:
+            if archivo not in disponibles:
+                raise SystemExit(
+                    f"La figura {archivo} no pertenece a la página {pregunta['pagina']} "
+                    f"del manual, de donde proviene «{enunciado[:60]}»."
+                )
+        pregunta["figuras"] = list(archivos)

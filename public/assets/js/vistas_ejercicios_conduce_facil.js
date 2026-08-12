@@ -12,6 +12,20 @@ import { armarTest, armarTrivia, maximoErrores } from './datos_conduce_facil.js'
 
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
 
+/** Dibujo con que el Manual CONASET plantea el caso de la pregunta. Se muestra
+ *  junto al enunciado porque el examen teórico presenta esas mismas
+ *  ilustraciones. La imagen es la del manual, sin adaptaciones. */
+function ilustracionesDelCaso(pregunta) {
+  const figuras = pregunta.figuras || [];
+  if (!figuras.length) return null;
+  return h('figure', { class: 'caso-manual' }, [
+    h('div', { class: 'caso-manual-imagenes' }, figuras.map((src) => h('img', {
+      src, alt: 'Ilustración del Manual CONASET que acompaña a este caso', loading: 'lazy',
+    }))),
+    h('figcaption', {}, `Ilustración del Manual CONASET, página ${pregunta.pagina}.`),
+  ]);
+}
+
 /* ================================================================= Motor === */
 
 /** Ejecuta una tanda de preguntas con cronómetro por pregunta y por sesión. */
@@ -80,6 +94,7 @@ function ejecutarEjercicio(raiz, config) {
           h('img', { src: pregunta.imagen, alt: 'Señal de tránsito del Manual de Señalización de Tránsito' }),
         ])
         : null,
+      ilustracionesDelCaso(pregunta),
       h('h2', { style: 'margin:0' }, pregunta.enunciado),
       h('div', { class: 'opciones', role: 'group', 'aria-label': 'Alternativas' }, botones),
       h('div', { class: 'retroalimentacion' }),
@@ -219,6 +234,7 @@ function pintarResumen(contenedor, sesion, respuestas, opcionesRepetir) {
         p.imagen ? h('figure', { class: 'marco-senal', style: 'margin:0 0 16px;min-height:0;padding:16px' }, [
           h('img', { src: p.imagen, alt: p.opciones[p.correcta], style: 'max-height:150px' }),
         ]) : null,
+        ilustracionesDelCaso(p),
         h('p', { style: 'margin-bottom:6px' }, [h('strong', {}, 'Correcta: '), p.opciones[p.correcta]]),
         r.acierto ? null : h('p', { style: 'margin-bottom:6px;color:var(--error-fuerte)' }, [
           h('strong', {}, 'Tu respuesta: '), r.eleccion === null ? 'Sin responder (se agotó el tiempo)' : p.opciones[r.eleccion],
@@ -319,18 +335,25 @@ export function vistaTrivia(raiz, parametros, consulta) {
   pintarConfiguracion();
 }
 
+/** Catálogo completo de la familia seleccionada: se muestran todas las señales,
+ *  nunca una muestra parcial, de modo que la cifra del filtro y lo que se ve en
+ *  pantalla siempre coinciden. Cada imagen es la del Manual de Señalización. */
 function galeriaSenales(datos, grupo) {
-  const lista = (grupo === 'todos' ? datos.senales : datos.senales.filter((s) => s.grupo === grupo)).slice(0, 24);
+  const lista = grupo === 'todos' ? datos.senales : datos.senales.filter((s) => s.grupo === grupo);
+  const rotulo = grupo === 'todos' ? 'todas las familias' : `la familia ${grupo}`;
   return h('section', { class: 'tarjeta', style: 'margin-top:24px' }, [
-    h('h2', {}, 'Vista previa del catálogo'),
+    h('h2', {}, 'Catálogo de señales'),
     h('p', { style: 'color:var(--gris-medio)' },
-      'Estas son algunas de las señales incluidas, tal como aparecen en el manual oficial.'),
-    h('div', { style: 'display:flex;flex-wrap:wrap;gap:14px' }, lista.map((s) => h('figure', {
-      style: 'margin:0;width:120px;text-align:center',
-      title: `${s.nombre} (${s.codigo})`,
+      `Las ${lista.length} señales de ${rotulo}, tal como aparecen en el manual oficial. Entran todas en la trivia.`),
+    h('div', { class: 'catalogo-senales' }, lista.map((s) => h('figure', {
+      class: 'ficha-senal', title: `${s.nombre} (${s.codigo})`,
     }, [
-      h('img', { src: `/assets/senales/${s.archivo}`, alt: s.nombre, loading: 'lazy', style: 'max-height:72px;width:auto' }),
-      h('figcaption', { style: 'font-size:12px;color:var(--gris-medio);margin-top:6px' }, s.codigo),
+      h('div', { class: 'ficha-senal-imagen' },
+        h('img', { src: `/assets/senales/${s.archivo}`, alt: s.nombre, loading: 'lazy', decoding: 'async' })),
+      h('figcaption', {}, [
+        h('span', { class: 'ficha-senal-codigo' }, s.codigo),
+        h('span', { class: 'ficha-senal-nombre' }, s.nombre),
+      ]),
     ]))),
   ]);
 }

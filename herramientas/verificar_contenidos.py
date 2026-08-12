@@ -33,6 +33,20 @@ MANUAL_SENALIZACION = os.path.join(RAIZ, "Manual-Señalizacion")
 
 MARGEN_PAGINAS = 2  # el texto de un contenido puede continuar en la página siguiente
 
+# Figuras del Manual CONASET indexadas por la página en que aparecen, según el
+# manifiesto de extracción. Sirve para comprobar que ninguna pregunta muestre
+# un dibujo de una página distinta a la de su fundamento.
+def _figuras_por_pagina() -> dict[int, set[str]]:
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manifiesto_figuras.json")
+    with open(ruta, encoding="utf-8") as f:
+        indice: dict[int, set[str]] = {}
+        for figura in json.load(f):
+            indice.setdefault(figura["pagina"], set()).add(figura["archivo"])
+    return indice
+
+
+FIGURAS_POR_PAGINA = _figuras_por_pagina()
+
 
 def cargar(nombre: str) -> dict:
     with open(os.path.join(DATOS, nombre), encoding="utf-8") as f:
@@ -88,6 +102,17 @@ def verificar_preguntas(fallos: list[str]) -> int:
             fallos.append(f"PREGUNTA {pregunta['id']}: tiene alternativas repetidas.")
         if not 0 <= pregunta["correcta"] < len(opciones):
             fallos.append(f"PREGUNTA {pregunta['id']}: el índice de la alternativa correcta es inválido.")
+        # La ilustración del caso debe existir y provenir de la misma página del
+        # manual de la que se recortó el fundamento.
+        for figura in pregunta.get("figuras", []):
+            ruta = os.path.join(FIGURAS, figura)
+            if not os.path.exists(ruta) or os.path.getsize(ruta) == 0:
+                fallos.append(f"PREGUNTA {pregunta['id']}: falta la ilustración {figura}.")
+            elif figura not in FIGURAS_POR_PAGINA.get(pregunta["pagina"], set()):
+                fallos.append(
+                    f"PREGUNTA {pregunta['id']}: la ilustración {figura} no pertenece a la "
+                    f"página {pregunta['pagina']} del manual."
+                )
     return len(datos["preguntas"])
 
 

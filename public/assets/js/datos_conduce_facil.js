@@ -101,6 +101,9 @@ export function preguntaDeTest(pregunta) {
     correcta: orden.findIndex((o) => o.indice === pregunta.correcta),
     fundamento: pregunta.fundamento,
     pagina: pregunta.pagina,
+    /* Dibujo con que el manual plantea el caso: el examen teórico lo incorpora,
+       de modo que la pregunta debe mostrarse con la misma ilustración. */
+    figuras: (pregunta.figuras || []).map((archivo) => `/assets/manual/${archivo}`),
   };
 }
 

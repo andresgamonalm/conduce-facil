@@ -88,6 +88,10 @@ def main() -> int:
     with open(os.path.join(DATOS, "estudio_conduce_facil.json"), "w", encoding="utf-8") as f:
         json.dump(estudio, f, ensure_ascii=False, separators=(",", ":"))
 
+    # Ilustración del caso: sólo se admite la figura de la misma página de la
+    # que proviene el fundamento; la propia función aborta si no es así.
+    cp.aplicar_ilustraciones({int(p): a for p, a in figuras_por_pagina.items()})
+
     preguntas = {
         "fuente": "Libro para la Conducción en Chile - Licencia Clase B, CONASET, julio 2024",
         "preguntas": cp.PREGUNTAS,
@@ -127,7 +131,8 @@ def main() -> int:
 
     con_fig = sum(1 for t in tarjetas if t["figuras"])
     print(f"Tarjetas de estudio : {len(tarjetas)} ({con_fig} con figuras del manual)")
-    print(f"Preguntas del test  : {len(cp.PREGUNTAS)}")
+    pre_fig = sum(1 for p in cp.PREGUNTAS if p.get("figuras"))
+    print(f"Preguntas del test  : {len(cp.PREGUNTAS)} ({pre_fig} con la ilustración del caso)")
     print(f"Señaléticas         : {len(senales)}")
     for nombre, _, _ in GRUPOS:
         print(f"   - {nombre}: {sum(1 for s in senales if s['grupo'] == nombre)}")
