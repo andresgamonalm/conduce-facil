@@ -10,7 +10,6 @@ import {
   puntosDebiles, resumenGeneral, seccionesDe,
 } from './datos_conduce_facil.js';
 
-const ILUSTRACION_HOME = '/assets/manual/cf038a.png';
 
 /* ---------------------------------------------------------------- /home ---- */
 
@@ -44,12 +43,12 @@ export function vistaHome(raiz) {
         h('div', { class: 'barra-progreso sobre-azul' }, h('span', { style: `width:${resumen.avanceEstudio}%` })),
       ]),
     ]),
-    h('figure', { class: 'portada-figura', style: 'margin:0' }, [
-      h('img', {
-        src: ILUSTRACION_HOME,
-        alt: 'Ilustración oficial del Manual CONASET: recorrido de una persona conductora por una vía interurbana',
-      }),
-    ]),
+    /* Ilustración decorativa: se pinta como fondo desde la hoja de estilos y
+       sólo en la composición de dos columnas. En móvil no se descarga. */
+    h('figure', {
+      class: 'portada-figura', style: 'margin:0', role: 'img',
+      'aria-label': 'Ilustración de un cruce urbano con vehículos, semáforos y una ambulancia',
+    }),
   ]));
 
   raiz.append(h('section', { class: 'cifras', style: 'margin-bottom:32px' }, [

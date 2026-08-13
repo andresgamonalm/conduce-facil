@@ -5,8 +5,6 @@ import { cargarSesionUsuario, estado, guardarPreferencias, limpiarSesion } from 
 import { desempenoPorCapitulo, resumenGeneral } from './datos_conduce_facil.js';
 import { PROGRESO_VACIO } from './almacenamiento_conduce_facil.js';
 
-const FOTO_ACCESO = '/assets/img/login_conduce_facil.jpg';
-const ILUSTRACION_ACCESO = '/assets/manual/cf038a.png';
 
 /* --------------------------------------------------------------- /login ---- */
 
@@ -50,12 +48,6 @@ export function vistaLogin(raiz) {
     boton,
   ]);
 
-  const foto = h('img', {
-    src: FOTO_ACCESO,
-    alt: 'Vía interurbana con vehículos circulando, ilustración del Manual CONASET para la Licencia Clase B',
-    onerror: (evento) => { evento.currentTarget.src = ILUSTRACION_ACCESO; },
-  });
-
   raiz.append(h('div', { class: 'pantalla-acceso' }, [
     h('section', { class: 'acceso-formulario' }, [
       h('div', { class: 'interior' }, [
@@ -74,8 +66,12 @@ export function vistaLogin(raiz) {
         ]),
       ]),
     ]),
-    h('aside', { class: 'acceso-visual' }, [
-      foto,
+    /* La ilustración se pinta como fondo desde la hoja de estilos y sólo en la
+       composición de dos columnas: en móvil no se muestra ni se descarga. */
+    h('aside', {
+      class: 'acceso-visual', role: 'img',
+      'aria-label': 'Ilustración de un cruce con dos vehículos señalizando su maniobra',
+    }, [
       h('div', { class: 'mensaje' }, [
         h('p', {}, [
           h('strong', {}, '35 preguntas, máximo 2 errores.'),

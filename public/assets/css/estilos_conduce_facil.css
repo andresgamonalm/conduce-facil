@@ -266,7 +266,6 @@ input[aria-invalid="true"] { border-color: var(--error); }
 .acceso-marca .palabra { font-size: 26px; font-weight: 600; color: var(--azul); }
 .acceso-marca .palabra em { font-style: normal; color: var(--turquesa); }
 .acceso-visual { position: relative; background: var(--azul); display: flex; align-items: flex-end; overflow: hidden; }
-.acceso-visual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .acceso-visual .mensaje {
   position: relative; margin: var(--e5); background: var(--azul); color: var(--blanco);
   border-radius: var(--radio); padding: var(--e3); max-width: 420px;
@@ -285,7 +284,6 @@ input[aria-invalid="true"] { border-color: var(--error); }
 .portada-home h1 { color: var(--blanco); font-size: 38px; margin-bottom: var(--e2); }
 .portada-home p { color: var(--blanco); font-size: 17px; margin-bottom: var(--e3); max-width: 46ch; }
 .portada-figura { border-radius: var(--radio); overflow: hidden; background: var(--blanco); }
-.portada-figura img { display: block; width: 100%; height: 260px; object-fit: cover; }
 
 .cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--e2); }
 .cifra { background: var(--blanco); border-radius: var(--radio); padding: var(--e3); }
@@ -425,6 +423,31 @@ table.tabla td.num, table.tabla th.num { text-align: right; font-variant-numeric
 /* -------------------------------------------------------------- Cargando */
 .cargando { display: grid; place-items: center; padding: var(--e6) 0; color: var(--gris-medio); }
 
+/* ------------------------------------------- Ilustraciones de fachada ------ */
+/* Las dos ilustraciones decorativas —la del acceso y la de la portada— sólo se
+   muestran donde fueron pensadas: la composición de dos columnas. La regla vive
+   dentro de la consulta de ancho a propósito, de modo que en un teléfono el
+   navegador ni siquiera pide el archivo. No afecta a las imágenes del examen
+   (ilustraciones de las preguntas y señaléticas), que se mantienen siempre. */
+.portada-figura { display: none; }
+
+@media (min-width: 901px) {
+  .acceso-visual {
+    background-image: url("/assets/img/login_conduce_facil.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .portada-figura {
+    display: block;
+    aspect-ratio: 800 / 814;
+    background-image: url("/assets/img/home_conduce_facil.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+}
+
 /* --------------------------------------------------------------- Responsive */
 @media (max-width: 1200px) {
   :root { --margen-lateral: 40px; }
@@ -447,8 +470,10 @@ table.tabla td.num, table.tabla th.num { text-align: right; font-variant-numeric
   .portada-home { grid-template-columns: 1fr; padding: var(--e4); }
   .portada-home h1 { font-size: 30px; }
   .pantalla-acceso { grid-template-columns: 1fr; }
-  .acceso-visual { min-height: 240px; order: -1; }
-  .acceso-visual .mensaje { margin: var(--e3); }
+  /* El panel lateral existe para sostener la fotografía. Sin ella, sólo
+     quedaría una banda azul que empuja el formulario fuera de la pantalla, así
+     que desaparece entero y el acceso queda a la vista al abrir. */
+  .acceso-visual { display: none; }
   .acceso-formulario { padding: var(--e5) var(--e3); }
   .resumen-resultado { grid-template-columns: 1fr; text-align: center; }
   .fila-debilidad { grid-template-columns: 1fr; }
