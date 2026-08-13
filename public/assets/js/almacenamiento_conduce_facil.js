@@ -14,23 +14,35 @@ const LLAVE_SESION = 'conduce-facil.sesion';
 const LLAVE_PROGRESO = 'conduce-facil.progreso.';
 const LLAVE_PREFERENCIAS = 'conduce-facil.preferencias.';
 
-/* Cuenta inicial definida por la persona propietaria del proyecto.
-   Se guarda únicamente la derivación PBKDF2-SHA256 de la contraseña (el número
-   de iteraciones está en nucleo_conduce_facil.js): el texto plano no existe en
-   el código ni en el repositorio.
-   La contraseña puede cambiarse desde /configuracion. */
-const CUENTA_INICIAL = {
-  usuario: 'andres',
-  nombre: 'Andrés',
-  rol: 'admin',
-  salt: 'GrjxWZdtiDfqPyuVXt7OyQ==',
-  hash: 'EsYwGuMMwJ4btJgbrlXqhf1REOfsQaDGZtktZwLll7M=',
-  iteraciones: 150000,
-  /* Subir este número cuando cambien salt o hash: los navegadores que ya
-     tuvieran sembrada la cuenta la reemplazan al abrir, en lugar de quedarse
-     con una contraseña que ya no coincide. */
-  version: 3,
-};
+/* Cuentas definidas por la propiedad del proyecto. De cada una se guarda
+   únicamente la derivación PBKDF2-SHA256 de su contraseña: el texto plano no
+   existe en el código ni en el repositorio.
+   El campo «version» permite corregir una contraseña sembrada: cuando el
+   navegador guarda una versión anterior a la de aquí, la reemplaza al abrir.
+   Las contraseñas que cada persona cambie desde /configuracion quedan marcadas
+   y no se sobrescriben nunca. */
+const CUENTAS_INICIALES = [
+  {
+    id: 'usuario-inicial',
+    usuario: 'andres',
+    nombre: 'Andrés',
+    rol: 'admin',
+    salt: 'GrjxWZdtiDfqPyuVXt7OyQ==',
+    hash: 'EsYwGuMMwJ4btJgbrlXqhf1REOfsQaDGZtktZwLll7M=',
+    iteraciones: 150000,
+    version: 3,
+  },
+  {
+    id: 'usuario-lorena',
+    usuario: 'lorena',
+    nombre: 'Lorena',
+    rol: 'estudiante',
+    salt: 'IqnQll6mnzZtT64Y6fwjkQ==',
+    hash: 'HdZVwSCXgwVlyk+7qD971W4ZQDrh+C8u0eTR0nRDnQ8=',
+    iteraciones: 150000,
+    version: 1,
+  },
+];
 
 /* Las cuentas creadas antes de que se guardara este dato usaban 150.000
    iteraciones; se asume ese valor cuando el registro no lo indica. */
@@ -69,40 +81,40 @@ function escribirJson(llave, valor) {
 class RepositorioLocal {
   constructor() { this.modo = 'local'; }
 
+  /** Deja este navegador al día con las cuentas del repositorio: añade las que
+   *  falten y corrige las que estén desactualizadas. Se ejecuta al abrir, de
+   *  modo que cualquiera puede entrar desde cualquier dispositivo sin más que
+   *  cargar la página. No toca las cuentas creadas desde /admin ni las
+   *  contraseñas que cada persona haya cambiado por su cuenta. */
   async iniciar() {
-    const usuarios = leerJson(LLAVE_USUARIOS, null);
-    const semilla = () => ({
-      id: 'usuario-inicial',
-      usuario: CUENTA_INICIAL.usuario,
-      nombre: CUENTA_INICIAL.nombre,
-      rol: CUENTA_INICIAL.rol,
-      salt: CUENTA_INICIAL.salt,
-      hash: CUENTA_INICIAL.hash,
-      iteraciones: CUENTA_INICIAL.iteraciones,
-      version: CUENTA_INICIAL.version,
-      creado: new Date().toISOString(),
-    });
+    const usuarios = leerJson(LLAVE_USUARIOS, []);
+    let cambios = false;
 
-    if (!usuarios || !usuarios.length) {
-      escribirJson(LLAVE_USUARIOS, [semilla()]);
-      return;
-    }
+    for (const semilla of CUENTAS_INICIALES) {
+      const guardada = usuarios.find((u) => u.id === semilla.id);
 
-    /* Reparación: si este navegador guarda una versión anterior de la cuenta
-       inicial, su contraseña ya no coincide con la del repositorio y no habría
-       manera de entrar. Se sustituye por la vigente. Sólo afecta a la cuenta
-       sembrada: las creadas desde /admin y las contraseñas cambiadas por la
-       propia persona no se tocan. */
-    const inicial = usuarios.find((u) => u.id === 'usuario-inicial');
-    if (inicial && (inicial.version || 1) < CUENTA_INICIAL.version) {
-      Object.assign(inicial, {
-        salt: CUENTA_INICIAL.salt,
-        hash: CUENTA_INICIAL.hash,
-        iteraciones: CUENTA_INICIAL.iteraciones,
-        version: CUENTA_INICIAL.version,
+      if (!guardada) {
+        usuarios.push({ ...semilla, creado: new Date().toISOString() });
+        cambios = true;
+        continue;
+      }
+
+      if (guardada.personalizada) continue;          // contraseña propia: intocable
+      if ((guardada.version || 1) >= semilla.version) continue;
+
+      Object.assign(guardada, {
+        usuario: semilla.usuario,
+        nombre: semilla.nombre,
+        rol: semilla.rol,
+        salt: semilla.salt,
+        hash: semilla.hash,
+        iteraciones: semilla.iteraciones,
+        version: semilla.version,
       });
-      escribirJson(LLAVE_USUARIOS, usuarios);
+      cambios = true;
     }
+
+    if (cambios) escribirJson(LLAVE_USUARIOS, usuarios);
   }
 
   usuarios() { return leerJson(LLAVE_USUARIOS, []); }
@@ -162,6 +174,8 @@ class RepositorioLocal {
     cuenta.salt = salt;
     cuenta.hash = hash;
     cuenta.iteraciones = iteraciones;
+    /* A partir de aquí la contraseña es suya: el repositorio ya no la corrige. */
+    cuenta.personalizada = true;
     escribirJson(LLAVE_USUARIOS, usuarios);
     return { ok: true };
   }
