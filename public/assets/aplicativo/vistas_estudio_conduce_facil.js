@@ -235,7 +235,9 @@ function tarjetaContenido(tarjeta, alCambiar) {
     h('div', { style: 'padding-top:16px' }, [
       h('div', { class: 'respuesta' }, [
         h('p', {}, tarjeta.respuesta),
-        h('p', { class: 'cita' }, `Texto literal del Manual CONASET, página ${tarjeta.pagina}.`),
+        tarjeta.pagina
+          ? h('p', { class: 'cita' }, `Texto ${tarjeta.editado ? 'del' : 'literal del'} Manual CONASET, página ${tarjeta.pagina}.`)
+          : h('p', { class: 'cita' }, 'Contenido propio, añadido desde el editor.'),
       ]),
       figuras,
       h('div', { class: 'acciones-estudio' }, [

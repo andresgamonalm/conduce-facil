@@ -44,19 +44,36 @@ export async function cargarDatos() {
   return cache;
 }
 
-/** Aplica sobre el material publicado las ediciones hechas desde /editor.
- *  Se conserva una copia del texto original de cada elemento tocado, de modo
- *  que restaurarlo es siempre posible. */
+/** Aplica sobre el material publicado las correcciones hechas desde /editor:
+ *  textos cambiados, contenidos eliminados y contenidos añadidos. De todo lo
+ *  tocado se conserva el original, de modo que restaurarlo es siempre posible. */
 export function aplicarEdiciones(datos, ediciones) {
-  if (!ediciones) return datos;
+  if (!ediciones || !Object.keys(ediciones).length) return datos;
+
   const porId = new Map();
   for (const t of datos.tarjetas) porId.set(t.id, t);
   for (const p of datos.preguntas) porId.set(p.id, p);
 
+  const eliminados = new Set();
+  const nuevosEstudio = [];
+  const nuevasPreguntas = [];
+
   for (const [id, cambio] of Object.entries(ediciones)) {
+    const { tipo, eliminado, nuevo, ...campos } = cambio;
+
+    if (eliminado) { eliminados.add(id); continue; }
+
     const elemento = porId.get(id);
-    if (!elemento) continue;
-    const { tipo, ...campos } = cambio;
+
+    if (!elemento) {
+      /* Contenido creado desde el editor: no existe en el material publicado. */
+      if (!nuevo) continue;
+      const creado = { id, capitulo: campos.capitulo, pagina: null, figuras: [], nuevo: true, editado: true, ...campos };
+      if (tipo === 'pregunta') nuevasPreguntas.push(creado);
+      else nuevosEstudio.push(creado);
+      continue;
+    }
+
     if (!elemento.original) {
       elemento.original = {};
       for (const clave of Object.keys(campos)) elemento.original[clave] = elemento[clave];
@@ -64,6 +81,32 @@ export function aplicarEdiciones(datos, ediciones) {
     Object.assign(elemento, campos);
     elemento.editado = true;
   }
+
+  /* Los quitados se apartan en lugar de perderse: el editor los ofrece para
+     recuperarlos. */
+  datos.eliminados = [
+    ...datos.tarjetas.filter((t) => eliminados.has(t.id)),
+    ...datos.preguntas.filter((p) => eliminados.has(p.id)),
+  ].map((e) => ({ ...e, eliminado: true }));
+
+  datos.tarjetas = datos.tarjetas.filter((t) => !eliminados.has(t.id)).concat(nuevosEstudio);
+  datos.preguntas = datos.preguntas.filter((p) => !eliminados.has(p.id)).concat(nuevasPreguntas);
+  reagrupar(datos);
+  return datos;
+}
+
+/** Rehace el índice por capítulo. Debe llamarse cada vez que se añada o quite
+ *  un contenido, porque el resto del aplicativo cuenta y practica a partir de él. */
+export function reagrupar(datos) {
+  const porCapitulo = new Map();
+  for (const capitulo of datos.capitulos) {
+    porCapitulo.set(capitulo.id, {
+      ...capitulo,
+      tarjetas: datos.tarjetas.filter((t) => t.capitulo === capitulo.id),
+      preguntas: datos.preguntas.filter((p) => p.capitulo === capitulo.id),
+    });
+  }
+  datos.porCapitulo = porCapitulo;
   return datos;
 }
 

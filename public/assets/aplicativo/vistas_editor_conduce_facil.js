@@ -4,8 +4,9 @@
    del texto publicado, de modo que restaurar el original siempre es posible, y
    se aplica de inmediato para todas las personas. */
 
-import { h, icono, vaciar } from './nucleo_conduce_facil.js';
+import { h, icono, idAleatorio, vaciar } from './nucleo_conduce_facil.js';
 import { estado } from './contexto_conduce_facil.js';
+import { reagrupar } from './datos_conduce_facil.js';
 
 const POR_PAGINA = 25;
 
@@ -40,13 +41,38 @@ export function vistaEditor(raiz) {
   let capitulo = 'todos';
   let busqueda = '';
   let pagina = 0;
+  let verEliminados = false;
 
   const lista = h('div', { class: 'lista-edicion' });
   const resumenLista = h('p', { style: 'color:var(--gris-medio);margin:0 0 16px' });
   const paginador = h('div', { class: 'grupo-botones', style: 'margin-top:24px' });
 
+  /* Contenidos quitados: se guardan aparte para poder recuperarlos. */
+  const eliminados = (datos.eliminados || []).slice();
+
   function universo() {
+    if (verEliminados) return eliminados.filter((e) => esPregunta(e) === (tipo === 'pregunta'));
     return tipo === 'estudio' ? datos.tarjetas : datos.preguntas;
+  }
+
+  function coleccion(elemento) {
+    return esPregunta(elemento) ? datos.preguntas : datos.tarjetas;
+  }
+
+  function quitarDelMaterial(elemento) {
+    const lista = coleccion(elemento);
+    const i = lista.indexOf(elemento);
+    if (i >= 0) lista.splice(i, 1);
+    if (!eliminados.includes(elemento)) eliminados.push(elemento);
+    reagrupar(datos);
+  }
+
+  function devolverAlMaterial(elemento) {
+    const i = eliminados.indexOf(elemento);
+    if (i >= 0) eliminados.splice(i, 1);
+    delete elemento.eliminado;
+    coleccion(elemento).push(elemento);
+    reagrupar(datos);
   }
 
   function filtrados() {
@@ -128,8 +154,15 @@ export function vistaEditor(raiz) {
         }
       }
 
+      /* En los contenidos creados aquí hay que conservar lo que los define
+         como propios; si no, al recargar dejarían de reconocerse y
+         desaparecerían. */
+      const carga = elemento.nuevo
+        ? { nuevo: true, capitulo: elemento.capitulo, ...cambios }
+        : cambios;
+
       const resultado = await estado.repo.guardarContenido(
-        elemento.id, pregunta ? 'pregunta' : 'estudio', cambios,
+        elemento.id, pregunta ? 'pregunta' : 'estudio', carga,
       );
 
       if (!resultado || !resultado.ok) {
@@ -193,20 +226,65 @@ export function vistaEditor(raiz) {
       actualizarContador();
     }
 
-    const acciones = h('div', { class: 'grupo-botones', style: 'margin-top:16px' }, [
-      h('button', {
-        type: 'button', class: 'boton boton-principal',
-        onclick: (e) => guardar(e.currentTarget),
-      }, [icono('config'), 'Guardar cambios']),
-      botonRestaurar,
-    ]);
+    /* Eliminar no destruye nada: se marca como quitado y deja de aparecer en
+       el aplicativo. Se recupera desde el filtro «Eliminados». */
+    async function eliminar(boton) {
+      boton.disabled = true;
+      const resultado = await estado.repo.guardarContenido(
+        elemento.id, pregunta ? 'pregunta' : 'estudio', { eliminado: true },
+      );
+      if (!resultado || !resultado.ok) {
+        mostrar(aviso, 'error', (resultado && resultado.error) || 'No se pudo eliminar.');
+        boton.disabled = false;
+        return;
+      }
+      elemento.eliminado = true;
+      quitarDelMaterial(elemento);
+      ficha.remove();
+      actualizarResumen();
+    }
 
-    return h('details', { class: 'tarjeta ficha-edicion' }, [
+    async function recuperar(boton) {
+      boton.disabled = true;
+      const resultado = await estado.repo.restaurarContenido(elemento.id);
+      if (!resultado || !resultado.ok) {
+        mostrar(aviso, 'error', (resultado && resultado.error) || 'No se pudo recuperar.');
+        boton.disabled = false;
+        return;
+      }
+      devolverAlMaterial(elemento);
+      ficha.remove();
+      actualizarResumen();
+    }
+
+    const acciones = elemento.eliminado
+      ? h('div', { class: 'grupo-botones', style: 'margin-top:16px' }, [
+        h('button', {
+          type: 'button', class: 'boton boton-turquesa',
+          onclick: (e) => recuperar(e.currentTarget),
+        }, 'Devolver al aplicativo'),
+      ])
+      : h('div', { class: 'grupo-botones', style: 'margin-top:16px' }, [
+        h('button', {
+          type: 'button', class: 'boton boton-principal',
+          onclick: (e) => guardar(e.currentTarget),
+        }, [icono('config'), 'Guardar cambios']),
+        botonRestaurar,
+        h('button', {
+          type: 'button', class: 'boton boton-texto', style: 'color:var(--error-fuerte)',
+          onclick: (e) => {
+            if (!window.confirm('¿Quitar este contenido del aplicativo? Podrás recuperarlo desde el filtro «Eliminados».')) return;
+            eliminar(e.currentTarget);
+          },
+        }, 'Eliminar'),
+      ]);
+
+    const ficha = h('details', { class: 'tarjeta ficha-edicion' }, [
       h('summary', {}, [
         h('span', { class: 'etiqueta etiqueta-neutra' }, elemento.id),
         rotuloResumen,
         marca,
-        h('span', { class: 'resumen-pagina' }, `p. ${elemento.pagina}`),
+        h('span', { class: 'resumen-pagina' }, elemento.pagina ? `p. ${elemento.pagina}` : 'propio'),
       ]),
       h('div', { class: 'cuerpo-edicion' }, [
         h('div', { class: 'campo' }, [
@@ -218,12 +296,15 @@ export function vistaEditor(raiz) {
           h('label', { for: `c-${elemento.id}` }, [pregunta ? 'Fundamento' : 'Respuesta', contador]),
           campoCuerpo,
           h('p', { class: 'ayuda' },
-            `Texto tomado de la página ${elemento.pagina} del manual. Puedes acortarlo o reescribirlo.`),
+            elemento.pagina
+              ? `Texto tomado de la página ${elemento.pagina} del manual. Puedes acortarlo o reescribirlo.`
+              : 'Contenido añadido por ti; no proviene del manual.'),
         ]),
         acciones,
         aviso,
       ]),
     ]);
+    return ficha;
   }
 
   function mostrar(nodo, clase, texto) {
@@ -270,6 +351,40 @@ export function vistaEditor(raiz) {
 
   /* --------------------------------------------------------- Controles ---- */
 
+  /* --- Añadir un contenido propio --- */
+  async function anadir() {
+    const destino = capitulo !== 'todos' ? capitulo : datos.capitulos[0].id;
+    const id = `propio-${idAleatorio().toLowerCase()}`;
+    const campos = tipo === 'pregunta'
+      ? {
+        capitulo: destino,
+        enunciado: 'Escribe aquí la pregunta',
+        opciones: ['Alternativa correcta', 'Alternativa 2', 'Alternativa 3', 'Alternativa 4'],
+        correcta: 0,
+        fundamento: '',
+      }
+      : { capitulo: destino, pregunta: 'Escribe aquí la pregunta', respuesta: '' };
+
+    const resultado = await estado.repo.guardarContenido(id, tipo === 'pregunta' ? 'pregunta' : 'estudio',
+      { nuevo: true, ...campos });
+    if (!resultado || !resultado.ok) {
+      window.alert((resultado && resultado.error) || 'No se pudo crear el contenido.');
+      return;
+    }
+    const creado = { id, pagina: null, figuras: [], nuevo: true, editado: true, ...campos };
+    (tipo === 'pregunta' ? datos.preguntas : datos.tarjetas).unshift(creado);
+    reagrupar(datos);
+    verEliminados = false;
+    busqueda = '';
+    campoBusqueda.value = '';
+    capitulo = destino;
+    selectorCapitulo.value = destino;
+    pagina = 0;
+    pintarLista();
+    const primera = lista.querySelector('.ficha-edicion');
+    if (primera) { primera.open = true; primera.scrollIntoView({ block: 'center' }); }
+  }
+
   const chipsTipo = h('div', { class: 'lista-chips' }, [
     ['estudio', `Estudio (${datos.tarjetas.length})`],
     ['pregunta', `Preguntas del test (${datos.preguntas.length})`],
@@ -291,6 +406,11 @@ export function vistaEditor(raiz) {
     ...datos.capitulos.map((c) => h('option', { value: c.id }, c.titulo)),
   ]);
 
+  const casillaEliminados = h('input', {
+    type: 'checkbox', id: 'ver-eliminados',
+    onchange: (e) => { verEliminados = e.currentTarget.checked; pagina = 0; pintarLista(); },
+  });
+
   const campoBusqueda = h('input', {
     type: 'text', id: 'buscar-contenido', placeholder: 'Buscar en preguntas y respuestas…',
     oninput: (e) => { busqueda = e.currentTarget.value; pagina = 0; pintarLista(); },
@@ -302,7 +422,12 @@ export function vistaEditor(raiz) {
       h('p', {}, 'Corrige el texto de cualquier contenido de estudio o pregunta del test. Los cambios se guardan al instante y quedan aplicados para todas las personas; el original puede recuperarse siempre.'),
     ]),
     h('section', { class: 'tarjeta', style: 'margin-bottom:24px' }, [
-      chipsTipo,
+      h('div', { style: 'display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between' }, [
+        chipsTipo,
+        h('button', {
+          type: 'button', class: 'boton boton-turquesa', onclick: () => anadir(),
+        }, [icono('flecha'), 'Añadir contenido']),
+      ]),
       h('div', { class: 'rejilla rejilla-2', style: 'margin-top:16px' }, [
         h('div', { class: 'campo', style: 'margin:0' }, [
           h('label', { for: 'filtro-capitulo' }, 'Capítulo'), selectorCapitulo,
@@ -310,6 +435,10 @@ export function vistaEditor(raiz) {
         h('div', { class: 'campo', style: 'margin:0' }, [
           h('label', { for: 'buscar-contenido' }, 'Buscar'), campoBusqueda,
         ]),
+      ]),
+      h('div', { class: 'opcion-caja', style: 'margin-top:8px' }, [
+        casillaEliminados,
+        h('label', { for: 'ver-eliminados' }, 'Ver los contenidos que quité, para recuperarlos'),
       ]),
     ]),
     resumenLista,

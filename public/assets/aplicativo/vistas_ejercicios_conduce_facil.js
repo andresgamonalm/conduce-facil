@@ -139,7 +139,9 @@ function ejecutarEjercicio(raiz, config) {
         pregunta.fundamento
           ? h('div', { class: 'tarjeta-turquesa', style: 'margin-bottom:16px' }, [
             h('p', { style: 'margin:0' }, pregunta.fundamento),
-            h('p', { class: 'cita', style: 'margin:8px 0 0' }, `Manual CONASET, página ${pregunta.pagina}.`),
+            pregunta.pagina
+              ? h('p', { class: 'cita', style: 'margin:8px 0 0' }, `Manual CONASET, página ${pregunta.pagina}.`)
+              : null,
           ])
           : h('p', { class: 'cita', style: 'margin:0 0 16px' },
             `Señal ${pregunta.codigo} · ${pregunta.grupo} · Manual de Señalización de Tránsito, ${pregunta.fuente.replace('.pdf', '')}, página ${pregunta.pagina}.`),
@@ -242,7 +244,9 @@ function pintarResumen(contenedor, sesion, respuestas, opcionesRepetir) {
         p.fundamento
           ? h('div', { class: 'tarjeta-turquesa' }, [
             h('p', { style: 'margin:0' }, p.fundamento),
-            h('p', { class: 'cita', style: 'margin:8px 0 0' }, `Manual CONASET, página ${p.pagina}.`),
+            p.pagina
+              ? h('p', { class: 'cita', style: 'margin:8px 0 0' }, `Manual CONASET, página ${p.pagina}.`)
+              : null,
           ])
           : h('p', { class: 'cita', style: 'margin:0' },
             `Señal ${p.codigo} · ${p.grupo} · Manual de Señalización de Tránsito, página ${p.pagina}.`),
