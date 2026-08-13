@@ -1,10 +1,39 @@
 /* Conduce-Fácil · Vistas de acceso, configuración y administración. */
 
-import { formatearFecha, h, icono, marcaSvg, navegar, porcentaje } from './nucleo_conduce_facil.js';
+import { formatearFecha, h, icono, marcaSvg, navegar, porcentaje, vaciar } from './nucleo_conduce_facil.js';
 import { cargarSesionUsuario, estado, guardarPreferencias, limpiarSesion } from './contexto_conduce_facil.js';
 import { desempenoPorCapitulo, resumenGeneral } from './datos_conduce_facil.js';
 import { PROGRESO_VACIO } from './almacenamiento_conduce_facil.js';
 
+
+/** Envuelve un campo de contraseña con el botón para mostrar lo escrito.
+ *  Es útil sobre todo en el teléfono, donde es fácil equivocarse al teclear y
+ *  no se ve lo que se ha puesto. Vuelve a ocultarse al enviar el formulario,
+ *  para que la contraseña no quede a la vista en la pantalla. */
+function conMostrar(campo) {
+  const boton = h('button', {
+    type: 'button', class: 'ver-clave', 'aria-pressed': 'false',
+    'aria-label': 'Mostrar la contraseña', title: 'Mostrar la contraseña',
+    onclick: () => {
+      const visible = campo.type === 'password';
+      campo.type = visible ? 'text' : 'password';
+      boton.setAttribute('aria-pressed', String(visible));
+      const rotulo = visible ? 'Ocultar la contraseña' : 'Mostrar la contraseña';
+      boton.setAttribute('aria-label', rotulo);
+      boton.setAttribute('title', rotulo);
+      vaciar(boton).append(icono(visible ? 'ocultar' : 'ver'));
+      campo.focus();
+    },
+  }, icono('ver'));
+
+  const envoltorio = h('div', { class: 'campo-clave' }, [campo, boton]);
+  envoltorio.ocultar = () => {
+    campo.type = 'password';
+    boton.setAttribute('aria-pressed', 'false');
+    vaciar(boton).append(icono('ver'));
+  };
+  return envoltorio;
+}
 
 /* --------------------------------------------------------------- /login ---- */
 
@@ -20,6 +49,7 @@ export function vistaLogin(raiz) {
     type: 'password', id: 'clave', name: 'clave', autocomplete: 'current-password',
     required: true, minlength: '6', placeholder: 'Mínimo 6 caracteres',
   });
+  const claveAcceso = conMostrar(campoClave);
   const boton = h('button', { type: 'submit', class: 'boton boton-principal boton-bloque' }, 'Entrar a estudiar');
 
   const formulario = h('form', {
@@ -27,6 +57,7 @@ export function vistaLogin(raiz) {
     onsubmit: async (evento) => {
       evento.preventDefault();
       aviso.classList.add('oculto');
+      claveAcceso.ocultar();
       boton.disabled = true;
       boton.textContent = 'Verificando…';
       const resultado = await estado.repo.ingresar(campoUsuario.value, campoClave.value);
@@ -44,7 +75,7 @@ export function vistaLogin(raiz) {
     },
   }, [
     h('div', { class: 'campo' }, [h('label', { for: 'usuario' }, 'Usuario'), campoUsuario]),
-    h('div', { class: 'campo' }, [h('label', { for: 'clave' }, 'Contraseña'), campoClave]),
+    h('div', { class: 'campo' }, [h('label', { for: 'clave' }, 'Contraseña'), claveAcceso]),
     boton,
   ]);
 
@@ -98,11 +129,13 @@ export function vistaConfiguracion(raiz) {
   const actual = h('input', { type: 'password', id: 'clave-actual', autocomplete: 'current-password', required: true });
   const nueva = h('input', { type: 'password', id: 'clave-nueva', autocomplete: 'new-password', required: true, minlength: '6' });
   const repetida = h('input', { type: 'password', id: 'clave-repetida', autocomplete: 'new-password', required: true, minlength: '6' });
+  const campos = [conMostrar(actual), conMostrar(nueva), conMostrar(repetida)];
 
   const formClave = h('form', {
     onsubmit: async (evento) => {
       evento.preventDefault();
       avisoClave.className = 'aviso oculto';
+      campos.forEach((c) => c.ocultar());
       if (nueva.value !== repetida.value) {
         avisoClave.className = 'aviso aviso-error';
         avisoClave.textContent = 'La contraseña nueva y su repetición no coinciden.';
@@ -116,12 +149,12 @@ export function vistaConfiguracion(raiz) {
       if (resultado.ok) formClave.reset();
     },
   }, [
-    h('div', { class: 'campo' }, [h('label', { for: 'clave-actual' }, 'Contraseña actual'), actual]),
+    h('div', { class: 'campo' }, [h('label', { for: 'clave-actual' }, 'Contraseña actual'), campos[0]]),
     h('div', { class: 'campo' }, [
-      h('label', { for: 'clave-nueva' }, 'Contraseña nueva'), nueva,
+      h('label', { for: 'clave-nueva' }, 'Contraseña nueva'), campos[1],
       h('p', { class: 'ayuda' }, 'Al menos 6 caracteres.'),
     ]),
-    h('div', { class: 'campo' }, [h('label', { for: 'clave-repetida' }, 'Repite la contraseña nueva'), repetida]),
+    h('div', { class: 'campo' }, [h('label', { for: 'clave-repetida' }, 'Repite la contraseña nueva'), campos[2]]),
     h('button', { type: 'submit', class: 'boton boton-principal' }, 'Guardar contraseña'),
   ]);
 

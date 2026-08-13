@@ -219,6 +219,21 @@ input[type="text"], input[type="password"], input[type="number"], select, textar
 input:focus, select:focus, textarea:focus { border-color: var(--azul-secundario); outline: none; }
 input[aria-invalid="true"] { border-color: var(--error); }
 
+/* Campo de contraseña con el botón para ver lo escrito. El botón se apoya
+   sobre el borde derecho del campo, que reserva espacio para él. */
+.campo-clave { position: relative; }
+.campo-clave input { padding-right: 52px; }
+.ver-clave {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  width: 38px; height: 38px; padding: 0;
+  display: grid; place-items: center;
+  background: transparent; border: 0; border-radius: var(--radio);
+  color: var(--gris-medio); cursor: pointer;
+}
+.ver-clave:hover { background: var(--gris-claro); color: var(--azul); }
+.ver-clave[aria-pressed="true"] { color: var(--azul); }
+.ver-clave svg { width: 21px; height: 21px; display: block; }
+
 .opcion-caja { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; }
 .opcion-caja input { width: 20px; height: 20px; min-height: 0; margin: 2px 0 0; flex: 0 0 auto; accent-color: var(--azul); }
 .opcion-caja label { margin: 0; font-weight: 400; color: var(--gris-oscuro); font-size: 15px; }
