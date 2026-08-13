@@ -121,25 +121,43 @@ function desdeBase64(texto) {
    del servidor, habría que bajarlo o contratar el plan Workers Paid. */
 export const ITERACIONES = 150000;
 
-/* Cada cuenta guarda con cuántas iteraciones se derivó su contraseña. Así,
-   cambiar el valor por omisión no invalida las cuentas ya existentes: cada una
-   se verifica con el número que le corresponde. */
-export async function derivarClave(clave, saltBase64, iteraciones = ITERACIONES) {
-  const salt = saltBase64 ? desdeBase64(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
+/* El trabajo caro lo hace siempre el navegador, que no tiene límite de tiempo
+   de cálculo. La sal se deriva del propio nombre de usuario, de modo que no
+   hace falta pedirla antes de entrar ni guardarla en ninguna parte. */
+async function sal(usuario) {
+  const semilla = CODIF.encode(`conduce-facil:${String(usuario).trim().toLowerCase()}`);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', semilla));
+}
+
+/** Resultado de las 150.000 iteraciones. Es lo que viaja al servidor: la
+ *  contraseña en claro nunca sale del navegador. */
+export async function derivarClave(usuario, clave) {
   const material = await crypto.subtle.importKey('raw', CODIF.encode(clave), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: iteraciones, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: await sal(usuario), iterations: ITERACIONES, hash: 'SHA-256' },
     material,
     256,
   );
-  return { salt: base64(salt), hash: base64(bits), iteraciones };
+  return base64(bits);
 }
 
-export async function verificarClave(clave, saltBase64, hashBase64, iteraciones = ITERACIONES) {
-  const { hash } = await derivarClave(clave, saltBase64, iteraciones);
-  if (hash.length !== hashBase64.length) return false;
+/** Lo que se guarda de una cuenta. Al ser el resumen de la derivación y no la
+ *  derivación misma, quien obtuviera la base de datos tampoco podría entrar con
+ *  ella: tendría que romper antes las 150.000 iteraciones. Comprobarlo cuesta
+ *  un solo SHA-256, así que el servidor lo resuelve en microsegundos. */
+export async function verificadorDe(derivada) {
+  const resumen = await crypto.subtle.digest('SHA-256', desdeBase64(derivada));
+  return base64(resumen);
+}
+
+export async function verificadorDeClave(usuario, clave) {
+  return verificadorDe(await derivarClave(usuario, clave));
+}
+
+export function mismoVerificador(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diferencia = 0;
-  for (let i = 0; i < hash.length; i++) diferencia |= hash.charCodeAt(i) ^ hashBase64.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diferencia === 0;
 }
 

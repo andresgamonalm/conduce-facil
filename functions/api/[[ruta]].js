@@ -18,15 +18,19 @@
  *   GET    /api/preferencias/:id    · PUT /api/preferencias/:id  { preferencias }
  */
 
-const ITERACIONES = 5000; // ver nucleo_conduce_facil.js: presupuesto de CPU de Workers
 const DURACION_SESION = 60 * 60 * 24 * 30; // 30 días
-const CUENTA_INICIAL = {
-  usuario: 'andres',
-  nombre: 'Andrés',
-  rol: 'admin',
-  salt: '/ZExpGtxfPAbulqp/V4GTA==',
-  hash: 'Q5gcFmosg99pxVV84kD9zILhANUnfxjE7yHqYci0wg4=',
-};
+
+/* Las 150.000 iteraciones de PBKDF2 las ejecuta el navegador, que no tiene
+   límite de tiempo de cálculo, y envía su resultado. Aquí sólo se comprueba un
+   SHA-256 de ese resultado: cuesta microsegundos y cabe de sobra en los 10 ms
+   de CPU que concede el plan gratuito. Lo almacenado no sirve para entrar:
+   quien obtuviera la base tendría que romper antes esas 150.000 iteraciones. */
+const CUENTAS_INICIALES = [
+  { id: 'usuario-inicial', usuario: 'andres', nombre: 'Andrés', rol: 'admin',
+    verificador: 'bpEBMjgfbis+kW/kH+pHg25vfad8U+IIG6Bl53irsNw=' },
+  { id: 'usuario-lorena', usuario: 'lorena', nombre: 'Lorena', rol: 'estudiante',
+    verificador: 'LgTAm/SXIDpdXyINZDrL5uR/lF7GZtVJbiltuo+0J6k=' },
+];
 
 /* --------------------------------------------------------------- Utilidad -- */
 
@@ -38,20 +42,14 @@ const json = (cuerpo, estado = 200, cabeceras = {}) => new Response(JSON.stringi
 const base64 = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
 const desdeBase64 = (texto) => Uint8Array.from(atob(texto), (c) => c.charCodeAt(0));
 
-async function derivar(clave, saltBase64) {
-  const salt = saltBase64 ? desdeBase64(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
-  const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(clave), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: ITERACIONES, hash: 'SHA-256' }, material, 256,
-  );
-  return { salt: base64(salt), hash: base64(bits) };
+async function verificadorDe(derivada) {
+  return base64(await crypto.subtle.digest('SHA-256', desdeBase64(String(derivada || ''))));
 }
 
-async function verificar(clave, salt, hash) {
-  const derivada = await derivar(clave, salt);
-  if (derivada.hash.length !== hash.length) return false;
+function coincide(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diferencia = 0;
-  for (let i = 0; i < hash.length; i++) diferencia |= derivada.hash.charCodeAt(i) ^ hash.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diferencia === 0;
 }
 
@@ -68,8 +66,7 @@ async function preparar(db) {
       usuario TEXT NOT NULL UNIQUE,
       nombre TEXT NOT NULL,
       rol TEXT NOT NULL DEFAULT 'estudiante',
-      salt TEXT NOT NULL,
-      hash TEXT NOT NULL,
+      verificador TEXT NOT NULL,
       creado TEXT NOT NULL
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS sesiones (
@@ -87,15 +84,13 @@ async function preparar(db) {
       datos TEXT NOT NULL
     )`),
   ]);
-  const { total } = await db.prepare('SELECT COUNT(*) AS total FROM usuarios').first();
-  if (!total) {
-    await db.prepare(
-      'INSERT INTO usuarios (id, usuario, nombre, rol, salt, hash, creado) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ).bind(
-      'usuario-inicial', CUENTA_INICIAL.usuario, CUENTA_INICIAL.nombre, CUENTA_INICIAL.rol,
-      CUENTA_INICIAL.salt, CUENTA_INICIAL.hash, new Date().toISOString(),
-    ).run();
-  }
+  /* Las cuentas definidas en el repositorio se siembran si faltan, de modo que
+     la base queda al día sola tras un despliegue. Las contraseñas que cada
+     persona haya cambiado no se tocan: sólo se insertan las que no existen. */
+  const ahora = new Date().toISOString();
+  await db.batch(CUENTAS_INICIALES.map((c) => db.prepare(
+    'INSERT OR IGNORE INTO usuarios (id, usuario, nombre, rol, verificador, creado) VALUES (?, ?, ?, ?, ?, ?)',
+  ).bind(c.id, c.usuario, c.nombre, c.rol, c.verificador, ahora)));
 }
 
 /* -------------------------------------------------------------- Sesiones --- */
@@ -174,7 +169,7 @@ async function enrutar(context) {
       const cuenta = await db.prepare('SELECT * FROM usuarios WHERE lower(usuario) = ?').bind(nombreUsuario).first();
       const generico = { ok: false, error: 'Usuario o contraseña incorrectos.' };
       if (!cuenta) return json(generico, 401);
-      if (!(await verificar(String(cuerpo.clave || ''), cuenta.salt, cuenta.hash))) return json(generico, 401);
+      if (!coincide(await verificadorDe(cuerpo.derivada), cuenta.verificador)) return json(generico, 401);
       const token = `${identificador()}${identificador()}`;
       const expira = Math.floor(Date.now() / 1000) + DURACION_SESION;
       await db.prepare('INSERT INTO sesiones (token, usuario_id, expira) VALUES (?, ?, ?)')
@@ -217,10 +212,9 @@ async function enrutar(context) {
       }
       const existente = await db.prepare('SELECT id FROM usuarios WHERE lower(usuario) = ?').bind(nombreUsuario).first();
       if (existente) return json({ ok: false, error: 'Ya existe una cuenta con ese usuario.' });
-      const { salt, hash } = await derivar(String(cuerpo.clave));
-      await db.prepare('INSERT INTO usuarios (id, usuario, nombre, rol, salt, hash, creado) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      await db.prepare('INSERT INTO usuarios (id, usuario, nombre, rol, verificador, creado) VALUES (?, ?, ?, ?, ?, ?)')
         .bind(identificador(), nombreUsuario, String(cuerpo.nombre || nombreUsuario).trim(),
-          cuerpo.rol === 'admin' ? 'admin' : 'estudiante', salt, hash, new Date().toISOString()).run();
+          cuerpo.rol === 'admin' ? 'admin' : 'estudiante', String(cuerpo.verificador || ''), new Date().toISOString()).run();
       return json({ ok: true });
     }
     if (metodo === 'DELETE' && identificadorRuta) {
@@ -249,12 +243,12 @@ async function enrutar(context) {
     if (String(cuerpo.claveNueva || '').length < 6) {
       return json({ ok: false, error: 'La contraseña nueva debe tener al menos 6 caracteres.' });
     }
-    const cuenta = await db.prepare('SELECT salt, hash FROM usuarios WHERE id = ?').bind(sesion.id).first();
-    if (!(await verificar(String(cuerpo.claveActual || ''), cuenta.salt, cuenta.hash))) {
+    const cuenta = await db.prepare('SELECT verificador FROM usuarios WHERE id = ?').bind(sesion.id).first();
+    if (!coincide(await verificadorDe(cuerpo.derivadaActual), cuenta.verificador)) {
       return json({ ok: false, error: 'La contraseña actual no es correcta.' });
     }
-    const { salt, hash } = await derivar(String(cuerpo.claveNueva));
-    await db.prepare('UPDATE usuarios SET salt = ?, hash = ? WHERE id = ?').bind(salt, hash, sesion.id).run();
+    await db.prepare('UPDATE usuarios SET verificador = ? WHERE id = ?')
+      .bind(String(cuerpo.verificadorNuevo || ''), sesion.id).run();
     return json({ ok: true });
   }
 

@@ -7,7 +7,9 @@
                    la persona administradora ve los resultados de todas las demás.
    La interfaz es la misma en ambos casos, de modo que las vistas no cambian. */
 
-import { derivarClave, idAleatorio, verificarClave } from './nucleo_conduce_facil.js';
+import {
+  derivarClave, idAleatorio, mismoVerificador, verificadorDe, verificadorDeClave,
+} from './nucleo_conduce_facil.js';
 
 const LLAVE_USUARIOS = 'conduce-facil.usuarios';
 const LLAVE_SESION = 'conduce-facil.sesion';
@@ -27,27 +29,18 @@ const CUENTAS_INICIALES = [
     usuario: 'andres',
     nombre: 'Andrés',
     rol: 'admin',
-    salt: 'GrjxWZdtiDfqPyuVXt7OyQ==',
-    hash: 'EsYwGuMMwJ4btJgbrlXqhf1REOfsQaDGZtktZwLll7M=',
-    iteraciones: 150000,
-    version: 3,
+    verificador: 'bpEBMjgfbis+kW/kH+pHg25vfad8U+IIG6Bl53irsNw=',
+    version: 4,
   },
   {
     id: 'usuario-lorena',
     usuario: 'lorena',
     nombre: 'Lorena',
     rol: 'estudiante',
-    salt: 'IqnQll6mnzZtT64Y6fwjkQ==',
-    hash: 'HdZVwSCXgwVlyk+7qD971W4ZQDrh+C8u0eTR0nRDnQ8=',
-    iteraciones: 150000,
-    version: 1,
+    verificador: 'LgTAm/SXIDpdXyINZDrL5uR/lF7GZtVJbiltuo+0J6k=',
+    version: 4,
   },
 ];
-
-/* Las cuentas creadas antes de que se guardara este dato usaban 150.000
-   iteraciones; se asume ese valor cuando el registro no lo indica. */
-const ITERACIONES_HEREDADAS = 150000;
-const iteracionesDe = (cuenta) => cuenta.iteraciones || ITERACIONES_HEREDADAS;
 
 export const PROGRESO_VACIO = () => ({
   estudio: {},
@@ -106,11 +99,12 @@ class RepositorioLocal {
         usuario: semilla.usuario,
         nombre: semilla.nombre,
         rol: semilla.rol,
-        salt: semilla.salt,
-        hash: semilla.hash,
-        iteraciones: semilla.iteraciones,
+        verificador: semilla.verificador,
         version: semilla.version,
       });
+      delete guardada.salt;
+      delete guardada.hash;
+      delete guardada.iteraciones;
       cambios = true;
     }
 
@@ -120,13 +114,13 @@ class RepositorioLocal {
   usuarios() { return leerJson(LLAVE_USUARIOS, []); }
 
   async listarUsuarios() {
-    return this.usuarios().map(({ salt, hash, ...resto }) => resto);
+    return this.usuarios().map(({ verificador, ...resto }) => resto);
   }
 
   async ingresar(usuario, clave) {
     const cuenta = this.usuarios().find((u) => u.usuario.toLowerCase() === String(usuario).trim().toLowerCase());
     if (!cuenta) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
-    const valida = await verificarClave(clave, cuenta.salt, cuenta.hash, iteracionesDe(cuenta));
+    const valida = mismoVerificador(await verificadorDeClave(cuenta.usuario, clave), cuenta.verificador);
     if (!valida) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
     escribirJson(LLAVE_SESION, { usuarioId: cuenta.id, iniciada: Date.now() });
     return { ok: true, usuario: { id: cuenta.id, usuario: cuenta.usuario, nombre: cuenta.nombre, rol: cuenta.rol } };
@@ -152,10 +146,10 @@ class RepositorioLocal {
     if (usuarios.some((u) => u.usuario.toLowerCase() === limpio)) {
       return { ok: false, error: 'Ya existe una cuenta con ese usuario.' };
     }
-    const { salt, hash, iteraciones } = await derivarClave(clave);
     usuarios.push({
       id: idAleatorio(), usuario: limpio, nombre: String(nombre).trim() || limpio,
-      rol: rol === 'admin' ? 'admin' : 'estudiante', salt, hash, iteraciones,
+      rol: rol === 'admin' ? 'admin' : 'estudiante',
+      verificador: await verificadorDeClave(limpio, clave),
       creado: new Date().toISOString(),
     });
     escribirJson(LLAVE_USUARIOS, usuarios);
@@ -167,13 +161,10 @@ class RepositorioLocal {
     const usuarios = this.usuarios();
     const cuenta = usuarios.find((u) => u.id === usuarioId);
     if (!cuenta) return { ok: false, error: 'No se encontró la cuenta.' };
-    if (!(await verificarClave(claveActual, cuenta.salt, cuenta.hash, iteracionesDe(cuenta)))) {
+    if (!mismoVerificador(await verificadorDeClave(cuenta.usuario, claveActual), cuenta.verificador)) {
       return { ok: false, error: 'La contraseña actual no es correcta.' };
     }
-    const { salt, hash, iteraciones } = await derivarClave(claveNueva);
-    cuenta.salt = salt;
-    cuenta.hash = hash;
-    cuenta.iteraciones = iteraciones;
+    cuenta.verificador = await verificadorDeClave(cuenta.usuario, claveNueva);
     /* A partir de aquí la contraseña es suya: el repositorio ya no la corrige. */
     cuenta.personalizada = true;
     escribirJson(LLAVE_USUARIOS, usuarios);
@@ -236,12 +227,27 @@ class RepositorioRemoto {
   async iniciar() { /* el servidor crea la cuenta inicial en su primera consulta */ }
 
   listarUsuarios() { return this.pedir('/usuarios').then((r) => r.usuarios || []); }
-  ingresar(usuario, clave) { return this.pedir('/sesion', { method: 'POST', cuerpo: { usuario, clave } }); }
+  async ingresar(usuario, clave) {
+    const derivada = await derivarClave(usuario, clave);
+    return this.pedir('/sesion', { method: 'POST', cuerpo: { usuario, derivada } });
+  }
   sesion() { return this.pedir('/sesion').then((r) => (r.ok ? r.usuario : null)); }
   salir() { return this.pedir('/sesion', { method: 'DELETE' }); }
-  crearUsuario(datos) { return this.pedir('/usuarios', { method: 'POST', cuerpo: datos }); }
-  cambiarClave(usuarioId, claveActual, claveNueva) {
-    return this.pedir('/clave', { method: 'POST', cuerpo: { usuarioId, claveActual, claveNueva } });
+  async crearUsuario({ usuario, nombre, clave, rol }) {
+    const limpio = String(usuario).trim().toLowerCase();
+    const verificador = await verificadorDeClave(limpio, clave);
+    return this.pedir('/usuarios', { method: 'POST', cuerpo: { usuario: limpio, nombre, rol, verificador } });
+  }
+  async cambiarClave(usuarioId, claveActual, claveNueva) {
+    const usuario = (await this.sesion())?.usuario;
+    return this.pedir('/clave', {
+      method: 'POST',
+      cuerpo: {
+        usuarioId,
+        derivadaActual: await derivarClave(usuario, claveActual),
+        verificadorNuevo: await verificadorDeClave(usuario, claveNueva),
+      },
+    });
   }
   eliminarUsuario(usuarioId) { return this.pedir(`/usuarios/${usuarioId}`, { method: 'DELETE' }); }
   progreso(usuarioId) {
