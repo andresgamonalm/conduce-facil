@@ -104,5 +104,22 @@
 </noscript>
 
 <script type="module" src="/assets/aplicativo/app_conduce_facil.js"></script>
+<script>
+/* Si el aplicativo no ha arrancado pasados unos segundos -normalmente porque el
+   navegador conserva en caché una versión anterior de esta página y pide
+   archivos que ya no existen-, se explica qué ocurre y se ofrece recargar, en
+   lugar de dejar la pantalla de carga indefinidamente. */
+setTimeout(function () {
+  var cargando = document.querySelector('#raiz .cargando');
+  if (!cargando) return;
+  cargando.innerHTML =
+    '<p style="margin-bottom:16px">No se pudo cargar Conduce-Fácil. Es probable que tu navegador '
+    + 'esté guardando una versión anterior de la página.</p>'
+    + '<button type="button" class="boton boton-principal">Volver a cargar</button>';
+  cargando.querySelector('button').addEventListener('click', function () {
+    location.replace(location.pathname + '?r=' + Date.now());
+  });
+}, 8000);
+</script>
 </body>
 </html>

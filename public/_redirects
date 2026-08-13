@@ -1,3 +1,10 @@
 # Cloudflare Pages · las rutas del aplicativo se resuelven en el cliente.
 /api/*  /api/:splat  200
+
+# El código se sirve desde /assets/aplicativo. Un navegador que conserve en
+# caché la página anterior seguirá pidiéndolo en /assets/js, así que esa ruta
+# se redirige a la actual en lugar de dejarlo sin nada que cargar. Los imports
+# entre archivos son relativos y pasan por esta misma regla.
+/assets/js/*  /assets/aplicativo/:splat  200
+
 /*      /index.html  200
