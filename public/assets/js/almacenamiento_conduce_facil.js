@@ -15,15 +15,16 @@ const LLAVE_PROGRESO = 'conduce-facil.progreso.';
 const LLAVE_PREFERENCIAS = 'conduce-facil.preferencias.';
 
 /* Cuenta inicial definida por la persona propietaria del proyecto.
-   Se guarda únicamente la derivación PBKDF2-SHA256 (150.000 iteraciones) de la
-   contraseña: el texto plano no existe en el código ni en el repositorio.
+   Se guarda únicamente la derivación PBKDF2-SHA256 de la contraseña (el número
+   de iteraciones está en nucleo_conduce_facil.js): el texto plano no existe en
+   el código ni en el repositorio.
    La contraseña puede cambiarse desde /configuracion. */
 const CUENTA_INICIAL = {
   usuario: 'andres',
   nombre: 'Andrés',
   rol: 'admin',
-  salt: 'CAEQKGj5WOgwzMWd/rYSSg==',
-  hash: 'XPv9/N7mO97o4hfwIT/focAKGwV9kZmwqnxsy4XOUi4=',
+  salt: '/ZExpGtxfPAbulqp/V4GTA==',
+  hash: 'Q5gcFmosg99pxVV84kD9zILhANUnfxjE7yHqYci0wg4=',
 };
 
 export const PROGRESO_VACIO = () => ({
@@ -174,7 +175,13 @@ class RepositorioRemoto {
       body: opciones.cuerpo ? JSON.stringify(opciones.cuerpo) : undefined,
     });
     if (!respuesta.ok && respuesta.status !== 401) {
-      return { ok: false, error: `Error del servidor (${respuesta.status}).` };
+      /* Se intenta mostrar el motivo real que devuelve el servidor; un «500»
+         a secas no permite diagnosticar nada desde el navegador. */
+      const detalle = await respuesta.json().catch(() => null);
+      return {
+        ok: false,
+        error: (detalle && detalle.error) || `Error del servidor (${respuesta.status}).`,
+      };
     }
     return respuesta.json();
   }

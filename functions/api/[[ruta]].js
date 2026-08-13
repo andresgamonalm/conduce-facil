@@ -18,14 +18,14 @@
  *   GET    /api/preferencias/:id    · PUT /api/preferencias/:id  { preferencias }
  */
 
-const ITERACIONES = 150000;
+const ITERACIONES = 5000; // ver nucleo_conduce_facil.js: presupuesto de CPU de Workers
 const DURACION_SESION = 60 * 60 * 24 * 30; // 30 días
 const CUENTA_INICIAL = {
   usuario: 'andres',
   nombre: 'Andrés',
   rol: 'admin',
-  salt: 'CAEQKGj5WOgwzMWd/rYSSg==',
-  hash: 'XPv9/N7mO97o4hfwIT/focAKGwV9kZmwqnxsy4XOUi4=',
+  salt: '/ZExpGtxfPAbulqp/V4GTA==',
+  hash: 'Q5gcFmosg99pxVV84kD9zILhANUnfxjE7yHqYci0wg4=',
 };
 
 /* --------------------------------------------------------------- Utilidad -- */
@@ -136,6 +136,16 @@ async function usuarioDeSesion(db, request) {
 /* ------------------------------------------------------------- Enrutador --- */
 
 export async function onRequest(context) {
+  /* Cualquier fallo inesperado se devuelve con su motivo: un 500 sin cuerpo no
+     permite diagnosticar nada desde el navegador. */
+  try {
+    return await enrutar(context);
+  } catch (error) {
+    return json({ ok: false, error: `Fallo en el servidor: ${error && error.message ? error.message : error}` }, 500);
+  }
+}
+
+async function enrutar(context) {
   const { request, env, params } = context;
   const partes = [].concat(params.ruta || []).filter(Boolean);
   const db = env.DB;

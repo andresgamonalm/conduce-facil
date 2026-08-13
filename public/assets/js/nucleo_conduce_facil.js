@@ -112,7 +112,13 @@ function desdeBase64(texto) {
   return Uint8Array.from(atob(texto), (c) => c.charCodeAt(0));
 }
 
-export const ITERACIONES = 150000;
+/* El servidor deriva la contraseña dentro de una Pages Function, y el plan
+   gratuito de Cloudflare Workers concede 10 ms de CPU por petición. 150.000
+   iteraciones consumían unos 100 ms y la petición moría con un error 500, así
+   que el coste se ajusta a lo que cabe en ese presupuesto (~4 ms).
+   Si el proyecto pasa al plan Workers Paid (30 s de CPU), este valor puede
+   volver a subirse; hay que volver a sembrar las contraseñas al cambiarlo. */
+export const ITERACIONES = 5000;
 
 export async function derivarClave(clave, saltBase64) {
   const salt = saltBase64 ? desdeBase64(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
