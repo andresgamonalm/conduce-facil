@@ -83,6 +83,15 @@ async function preparar(db) {
       usuario_id TEXT PRIMARY KEY,
       datos TEXT NOT NULL
     )`),
+    /* Ediciones del contenido hechas desde /editor. Se guarda sólo lo que
+       cambia respecto del texto publicado, de modo que restaurar el original
+       es simplemente borrar la fila. */
+    db.prepare(`CREATE TABLE IF NOT EXISTS contenidos (
+      id TEXT PRIMARY KEY,
+      tipo TEXT NOT NULL,
+      datos TEXT NOT NULL,
+      actualizado TEXT NOT NULL
+    )`),
   ]);
   /* Las cuentas definidas en el repositorio se siembran si faltan, de modo que
      la base queda al día sola tras un despliegue. Las contraseñas que cada
@@ -161,6 +170,17 @@ async function enrutar(context) {
 
   if (recurso === 'salud') return json({ ok: true, modo: 'servidor' });
 
+  /* Las ediciones del contenido las lee todo el mundo -son el material de
+     estudio- pero sólo la administración puede modificarlas. */
+  if (recurso === 'contenidos' && metodo === 'GET') {
+    const { results } = await db.prepare('SELECT id, tipo, datos FROM contenidos').all();
+    const ediciones = {};
+    for (const fila of results) {
+      try { ediciones[fila.id] = { tipo: fila.tipo, ...JSON.parse(fila.datos) }; } catch (e) { /* fila ilegible */ }
+    }
+    return json({ ok: true, ediciones });
+  }
+
   /* --- Sesión ------------------------------------------------------------ */
   if (recurso === 'sesion') {
     if (metodo === 'POST') {
@@ -192,6 +212,27 @@ async function enrutar(context) {
   const sesion = await usuarioDeSesion(db, request);
   if (!sesion) return json({ ok: false, error: 'Sesión no válida.' }, 401);
   const esAdmin = sesion.rol === 'admin';
+
+  /* --- Contenidos -------------------------------------------------------- */
+  if (recurso === 'contenidos') {
+    if (!esAdmin) return json({ ok: false, error: 'Sólo la administración puede editar los contenidos.' }, 403);
+    if (!identificadorRuta) return json({ ok: false, error: 'Falta el identificador del contenido.' }, 400);
+
+    if (metodo === 'PUT') {
+      const cuerpo = await request.json().catch(() => ({}));
+      const tipo = cuerpo.tipo === 'pregunta' ? 'pregunta' : 'estudio';
+      await db.prepare(
+        `INSERT INTO contenidos (id, tipo, datos, actualizado) VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET tipo = excluded.tipo, datos = excluded.datos, actualizado = excluded.actualizado`,
+      ).bind(identificadorRuta, tipo, JSON.stringify(cuerpo.datos || {}), new Date().toISOString()).run();
+      return json({ ok: true });
+    }
+
+    if (metodo === 'DELETE') {
+      await db.prepare('DELETE FROM contenidos WHERE id = ?').bind(identificadorRuta).run();
+      return json({ ok: true });
+    }
+  }
 
   /* --- Usuarios ---------------------------------------------------------- */
   if (recurso === 'usuarios') {

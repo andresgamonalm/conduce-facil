@@ -15,6 +15,7 @@ const LLAVE_USUARIOS = 'conduce-facil.usuarios';
 const LLAVE_SESION = 'conduce-facil.sesion';
 const LLAVE_PROGRESO = 'conduce-facil.progreso.';
 const LLAVE_PREFERENCIAS = 'conduce-facil.preferencias.';
+const LLAVE_CONTENIDOS = 'conduce-facil.contenidos';
 
 /* Cuentas definidas por la propiedad del proyecto. De cada una se guarda
    únicamente la derivación PBKDF2-SHA256 de su contraseña: el texto plano no
@@ -198,6 +199,24 @@ class RepositorioLocal {
     escribirJson(LLAVE_PREFERENCIAS + usuarioId, preferencias);
     return { ok: true };
   }
+
+  /* --- Ediciones del contenido --- */
+  async ediciones() { return leerJson(LLAVE_CONTENIDOS, {}); }
+
+  async guardarContenido(id, tipo, datos) {
+    const todas = leerJson(LLAVE_CONTENIDOS, {});
+    todas[id] = { tipo, ...datos };
+    return escribirJson(LLAVE_CONTENIDOS, todas)
+      ? { ok: true }
+      : { ok: false, error: 'No se pudo guardar en este navegador.' };
+  }
+
+  async restaurarContenido(id) {
+    const todas = leerJson(LLAVE_CONTENIDOS, {});
+    delete todas[id];
+    escribirJson(LLAVE_CONTENIDOS, todas);
+    return { ok: true };
+  }
 }
 
 /* -------------------------------------------------------- Modo servidor ---- */
@@ -259,6 +278,17 @@ class RepositorioRemoto {
   preferencias(usuarioId) { return this.pedir(`/preferencias/${usuarioId}`).then((r) => r.preferencias || {}); }
   guardarPreferencias(usuarioId, preferencias) {
     return this.pedir(`/preferencias/${usuarioId}`, { method: 'PUT', cuerpo: { preferencias } });
+  }
+
+  /* --- Ediciones del contenido --- */
+  ediciones() { return this.pedir('/contenidos').then((r) => r.ediciones || {}); }
+
+  guardarContenido(id, tipo, datos) {
+    return this.pedir(`/contenidos/${id}`, { method: 'PUT', cuerpo: { tipo, datos } });
+  }
+
+  restaurarContenido(id) {
+    return this.pedir(`/contenidos/${id}`, { method: 'DELETE' });
   }
 }
 

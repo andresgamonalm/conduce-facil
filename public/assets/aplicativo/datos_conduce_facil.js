@@ -44,6 +44,29 @@ export async function cargarDatos() {
   return cache;
 }
 
+/** Aplica sobre el material publicado las ediciones hechas desde /editor.
+ *  Se conserva una copia del texto original de cada elemento tocado, de modo
+ *  que restaurarlo es siempre posible. */
+export function aplicarEdiciones(datos, ediciones) {
+  if (!ediciones) return datos;
+  const porId = new Map();
+  for (const t of datos.tarjetas) porId.set(t.id, t);
+  for (const p of datos.preguntas) porId.set(p.id, p);
+
+  for (const [id, cambio] of Object.entries(ediciones)) {
+    const elemento = porId.get(id);
+    if (!elemento) continue;
+    const { tipo, ...campos } = cambio;
+    if (!elemento.original) {
+      elemento.original = {};
+      for (const clave of Object.keys(campos)) elemento.original[clave] = elemento[clave];
+    }
+    Object.assign(elemento, campos);
+    elemento.editado = true;
+  }
+  return datos;
+}
+
 export function capitulo(datos, id) {
   return datos.porCapitulo.get(id) || null;
 }

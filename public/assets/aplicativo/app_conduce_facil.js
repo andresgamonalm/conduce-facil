@@ -7,10 +7,11 @@ import {
 } from './nucleo_conduce_facil.js';
 import { crearRepositorio } from './almacenamiento_conduce_facil.js';
 import { cargarSesionUsuario, estado } from './contexto_conduce_facil.js';
-import { cargarDatos } from './datos_conduce_facil.js';
+import { aplicarEdiciones, cargarDatos } from './datos_conduce_facil.js';
 import { cerrarSesion, vistaAdmin, vistaConfiguracion, vistaLogin } from './vistas_acceso_conduce_facil.js';
 import { vistaCapitulo, vistaEstudio, vistaHome, vistaRepaso } from './vistas_estudio_conduce_facil.js';
 import { vistaResultados, vistaTest, vistaTrivia } from './vistas_ejercicios_conduce_facil.js';
+import { vistaEditor } from './vistas_editor_conduce_facil.js';
 
 const RAIZ = document.getElementById('raiz');
 
@@ -23,6 +24,7 @@ const SECCIONES = [
   { ruta: '/repaso', etiqueta: 'Repaso', icono: 'repaso', secundaria: true },
   { ruta: '/configuracion', etiqueta: 'Configuración', icono: 'config', secundaria: true },
   { ruta: '/admin', etiqueta: 'Administración', icono: 'admin', soloAdmin: true, secundaria: true },
+  { ruta: '/editor', etiqueta: 'Editor', icono: 'estudio', soloAdmin: true, secundaria: true },
 ];
 
 /* ------------------------------------------------------------ Estructura --- */
@@ -157,6 +159,7 @@ registrarRuta('/repaso', protegida(vistaRepaso));
 registrarRuta('/resultados', protegida(vistaResultados));
 registrarRuta('/configuracion', protegida(vistaConfiguracion));
 registrarRuta('/admin', protegida(vistaAdmin));
+registrarRuta('/editor', protegida(vistaEditor));
 
 alNavegar((ruta) => marcarSeccionActiva(ruta));
 
@@ -174,6 +177,13 @@ async function iniciar() {
   try {
     estado.repo = await crearRepositorio();
     estado.datos = await cargarDatos();
+    /* Correcciones hechas desde /editor: se aplican sobre el material
+       publicado antes de pintar nada. */
+    try {
+      aplicarEdiciones(estado.datos, await estado.repo.ediciones());
+    } catch (error) {
+      console.warn('No se pudieron cargar las ediciones del contenido', error);
+    }
     const sesion = await estado.repo.sesion();
     if (sesion) await cargarSesionUsuario(sesion);
     resolver();

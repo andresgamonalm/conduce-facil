@@ -421,6 +421,37 @@ table.tabla td.num, table.tabla th.num { text-align: right; font-variant-numeric
   align-items: center; background: var(--blanco); border-radius: var(--radio); padding: var(--e2) var(--e3);
 }
 
+/* ----------------------------------------------------------------- Editor */
+.lista-edicion { display: grid; gap: var(--e2); }
+.ficha-edicion { padding: 0; }
+.ficha-edicion > summary {
+  cursor: pointer; list-style: none; padding: var(--e2) var(--e3);
+  display: flex; align-items: center; gap: 12px;
+}
+.ficha-edicion > summary::-webkit-details-marker { display: none; }
+.ficha-edicion > summary:hover { background: var(--verde-agua); border-radius: var(--radio); }
+.ficha-edicion .resumen-titulo {
+  flex: 1 1 auto; min-width: 0; font-weight: 500; color: var(--azul);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ficha-edicion .resumen-pagina { flex: 0 0 auto; font-size: 13px; color: var(--gris-medio); }
+.cuerpo-edicion { padding: 0 var(--e3) var(--e3); }
+.cuerpo-edicion textarea { resize: vertical; line-height: 1.5; }
+
+.contador-texto { float: right; font-weight: 400; font-size: 12.5px; color: var(--gris-medio); }
+.contador-texto.largo { color: var(--alerta-fuerte); font-weight: 500; }
+
+.opciones-edicion { display: grid; gap: var(--e1); }
+.opcion-edicion { display: flex; align-items: center; gap: 12px; }
+.opcion-edicion input[type="radio"] {
+  width: 22px; height: 22px; min-height: 0; flex: 0 0 auto; margin: 0; accent-color: var(--azul);
+}
+
+@media (max-width: 640px) {
+  .ficha-edicion > summary { flex-wrap: wrap; }
+  .ficha-edicion .resumen-titulo { flex: 1 1 100%; white-space: normal; }
+}
+
 /* ------------------------------------------------------------------ Vacíos */
 .estado-vacio { background: var(--blanco); border-radius: var(--radio); padding: var(--e5); text-align: center; }
 .estado-vacio p { color: var(--gris-medio); max-width: 52ch; margin: 0 auto var(--e3); }
