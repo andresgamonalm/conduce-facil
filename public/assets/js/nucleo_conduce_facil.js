@@ -112,27 +112,31 @@ function desdeBase64(texto) {
   return Uint8Array.from(atob(texto), (c) => c.charCodeAt(0));
 }
 
-/* El servidor deriva la contraseña dentro de una Pages Function, y el plan
-   gratuito de Cloudflare Workers concede 10 ms de CPU por petición. 150.000
-   iteraciones consumían unos 100 ms y la petición moría con un error 500, así
-   que el coste se ajusta a lo que cabe en ese presupuesto (~4 ms).
-   Si el proyecto pasa al plan Workers Paid (30 s de CPU), este valor puede
-   volver a subirse; hay que volver a sembrar las contraseñas al cambiarlo. */
-export const ITERACIONES = 5000;
+/* La contraseña se deriva en el navegador, que no tiene límite de CPU, así que
+   se usa la protección completa recomendada. Cada cuenta guarda con cuántas
+   iteraciones se derivó la suya, de modo que cambiar este valor no invalida las
+   cuentas existentes.
+   Aviso: el plan gratuito de Cloudflare Workers concede 10 ms de CPU por
+   petición y este cálculo consume unos 100 ms. Si algún día se activara la API
+   del servidor, habría que bajarlo o contratar el plan Workers Paid. */
+export const ITERACIONES = 150000;
 
-export async function derivarClave(clave, saltBase64) {
+/* Cada cuenta guarda con cuántas iteraciones se derivó su contraseña. Así,
+   cambiar el valor por omisión no invalida las cuentas ya existentes: cada una
+   se verifica con el número que le corresponde. */
+export async function derivarClave(clave, saltBase64, iteraciones = ITERACIONES) {
   const salt = saltBase64 ? desdeBase64(saltBase64) : crypto.getRandomValues(new Uint8Array(16));
   const material = await crypto.subtle.importKey('raw', CODIF.encode(clave), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: ITERACIONES, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations: iteraciones, hash: 'SHA-256' },
     material,
     256,
   );
-  return { salt: base64(salt), hash: base64(bits) };
+  return { salt: base64(salt), hash: base64(bits), iteraciones };
 }
 
-export async function verificarClave(clave, saltBase64, hashBase64) {
-  const { hash } = await derivarClave(clave, saltBase64);
+export async function verificarClave(clave, saltBase64, hashBase64, iteraciones = ITERACIONES) {
+  const { hash } = await derivarClave(clave, saltBase64, iteraciones);
   if (hash.length !== hashBase64.length) return false;
   let diferencia = 0;
   for (let i = 0; i < hash.length; i++) diferencia |= hash.charCodeAt(i) ^ hashBase64.charCodeAt(i);

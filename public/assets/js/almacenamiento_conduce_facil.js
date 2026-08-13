@@ -23,9 +23,19 @@ const CUENTA_INICIAL = {
   usuario: 'andres',
   nombre: 'Andrés',
   rol: 'admin',
-  salt: '/ZExpGtxfPAbulqp/V4GTA==',
-  hash: 'Q5gcFmosg99pxVV84kD9zILhANUnfxjE7yHqYci0wg4=',
+  salt: 'GrjxWZdtiDfqPyuVXt7OyQ==',
+  hash: 'EsYwGuMMwJ4btJgbrlXqhf1REOfsQaDGZtktZwLll7M=',
+  iteraciones: 150000,
+  /* Subir este número cuando cambien salt o hash: los navegadores que ya
+     tuvieran sembrada la cuenta la reemplazan al abrir, en lugar de quedarse
+     con una contraseña que ya no coincide. */
+  version: 3,
 };
+
+/* Las cuentas creadas antes de que se guardara este dato usaban 150.000
+   iteraciones; se asume ese valor cuando el registro no lo indica. */
+const ITERACIONES_HEREDADAS = 150000;
+const iteracionesDe = (cuenta) => cuenta.iteraciones || ITERACIONES_HEREDADAS;
 
 export const PROGRESO_VACIO = () => ({
   estudio: {},
@@ -61,16 +71,37 @@ class RepositorioLocal {
 
   async iniciar() {
     const usuarios = leerJson(LLAVE_USUARIOS, null);
+    const semilla = () => ({
+      id: 'usuario-inicial',
+      usuario: CUENTA_INICIAL.usuario,
+      nombre: CUENTA_INICIAL.nombre,
+      rol: CUENTA_INICIAL.rol,
+      salt: CUENTA_INICIAL.salt,
+      hash: CUENTA_INICIAL.hash,
+      iteraciones: CUENTA_INICIAL.iteraciones,
+      version: CUENTA_INICIAL.version,
+      creado: new Date().toISOString(),
+    });
+
     if (!usuarios || !usuarios.length) {
-      escribirJson(LLAVE_USUARIOS, [{
-        id: 'usuario-inicial',
-        usuario: CUENTA_INICIAL.usuario,
-        nombre: CUENTA_INICIAL.nombre,
-        rol: CUENTA_INICIAL.rol,
+      escribirJson(LLAVE_USUARIOS, [semilla()]);
+      return;
+    }
+
+    /* Reparación: si este navegador guarda una versión anterior de la cuenta
+       inicial, su contraseña ya no coincide con la del repositorio y no habría
+       manera de entrar. Se sustituye por la vigente. Sólo afecta a la cuenta
+       sembrada: las creadas desde /admin y las contraseñas cambiadas por la
+       propia persona no se tocan. */
+    const inicial = usuarios.find((u) => u.id === 'usuario-inicial');
+    if (inicial && (inicial.version || 1) < CUENTA_INICIAL.version) {
+      Object.assign(inicial, {
         salt: CUENTA_INICIAL.salt,
         hash: CUENTA_INICIAL.hash,
-        creado: new Date().toISOString(),
-      }]);
+        iteraciones: CUENTA_INICIAL.iteraciones,
+        version: CUENTA_INICIAL.version,
+      });
+      escribirJson(LLAVE_USUARIOS, usuarios);
     }
   }
 
@@ -83,7 +114,7 @@ class RepositorioLocal {
   async ingresar(usuario, clave) {
     const cuenta = this.usuarios().find((u) => u.usuario.toLowerCase() === String(usuario).trim().toLowerCase());
     if (!cuenta) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
-    const valida = await verificarClave(clave, cuenta.salt, cuenta.hash);
+    const valida = await verificarClave(clave, cuenta.salt, cuenta.hash, iteracionesDe(cuenta));
     if (!valida) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
     escribirJson(LLAVE_SESION, { usuarioId: cuenta.id, iniciada: Date.now() });
     return { ok: true, usuario: { id: cuenta.id, usuario: cuenta.usuario, nombre: cuenta.nombre, rol: cuenta.rol } };
@@ -109,10 +140,11 @@ class RepositorioLocal {
     if (usuarios.some((u) => u.usuario.toLowerCase() === limpio)) {
       return { ok: false, error: 'Ya existe una cuenta con ese usuario.' };
     }
-    const { salt, hash } = await derivarClave(clave);
+    const { salt, hash, iteraciones } = await derivarClave(clave);
     usuarios.push({
       id: idAleatorio(), usuario: limpio, nombre: String(nombre).trim() || limpio,
-      rol: rol === 'admin' ? 'admin' : 'estudiante', salt, hash, creado: new Date().toISOString(),
+      rol: rol === 'admin' ? 'admin' : 'estudiante', salt, hash, iteraciones,
+      creado: new Date().toISOString(),
     });
     escribirJson(LLAVE_USUARIOS, usuarios);
     return { ok: true };
@@ -123,12 +155,13 @@ class RepositorioLocal {
     const usuarios = this.usuarios();
     const cuenta = usuarios.find((u) => u.id === usuarioId);
     if (!cuenta) return { ok: false, error: 'No se encontró la cuenta.' };
-    if (!(await verificarClave(claveActual, cuenta.salt, cuenta.hash))) {
+    if (!(await verificarClave(claveActual, cuenta.salt, cuenta.hash, iteracionesDe(cuenta)))) {
       return { ok: false, error: 'La contraseña actual no es correcta.' };
     }
-    const { salt, hash } = await derivarClave(claveNueva);
+    const { salt, hash, iteraciones } = await derivarClave(claveNueva);
     cuenta.salt = salt;
     cuenta.hash = hash;
+    cuenta.iteraciones = iteraciones;
     escribirJson(LLAVE_USUARIOS, usuarios);
     return { ok: true };
   }
