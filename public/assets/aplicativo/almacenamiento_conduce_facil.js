@@ -41,6 +41,14 @@ const CUENTAS_INICIALES = [
     verificador: 'LgTAm/SXIDpdXyINZDrL5uR/lF7GZtVJbiltuo+0J6k=',
     version: 4,
   },
+  {
+    id: 'usuario-invitado',
+    usuario: 'invitado',
+    nombre: 'Invitado',
+    rol: 'estudiante',
+    verificador: 'cbP2igLv3xRBCPofnBENLgKEjC1OZf5HH7LXKeytbbw=',
+    version: 1,
+  },
 ];
 
 export const PROGRESO_VACIO = () => ({

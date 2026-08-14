@@ -30,6 +30,8 @@ const CUENTAS_INICIALES = [
     verificador: 'bpEBMjgfbis+kW/kH+pHg25vfad8U+IIG6Bl53irsNw=' },
   { id: 'usuario-lorena', usuario: 'lorena', nombre: 'Lorena', rol: 'estudiante',
     verificador: 'LgTAm/SXIDpdXyINZDrL5uR/lF7GZtVJbiltuo+0J6k=' },
+  { id: 'usuario-invitado', usuario: 'invitado', nombre: 'Invitado', rol: 'estudiante',
+    verificador: 'cbP2igLv3xRBCPofnBENLgKEjC1OZf5HH7LXKeytbbw=' },
 ];
 
 /* --------------------------------------------------------------- Utilidad -- */
